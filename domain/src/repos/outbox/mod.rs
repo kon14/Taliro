@@ -3,10 +3,11 @@ use common::error::AppError;
 use common::tx::ctx::AtomicTransactionContext;
 use std::fmt::Debug;
 
+#[cfg_attr(test, mockall::automock)]
 pub trait OutboxRepository: Send + Sync + Debug {
-    fn insert_entry(
+    fn insert_entry<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
         entry: OutboxEntry,
     ) -> Result<(), AppError>;
 

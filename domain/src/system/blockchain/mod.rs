@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::entities::block::{Block, BlockHeight};
 use crate::repos::blockchain::BlockchainRepository;
 use crate::repos::outbox::OutboxRepository;

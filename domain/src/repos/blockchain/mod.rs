@@ -7,18 +7,19 @@ use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
+#[cfg_attr(test, mockall::automock)]
 pub trait BlockchainRepository: Send + Sync + Debug {
     fn get_blockchain_append_block_unit_of_work(&self) -> Arc<dyn UnitOfWork>;
 
-    fn insert_block(
+    fn insert_block<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
         block: &Block,
     ) -> Result<(), AppError>;
 
-    fn get_block(
+    fn get_block<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
         hash: &Hash,
     ) -> Result<Option<Block>, AppError>;
 
@@ -26,9 +27,9 @@ pub trait BlockchainRepository: Send + Sync + Debug {
     /// This will raise an error if any hash doesn't have a corresponding block.
     fn get_multiple_blocks(&self, hashes: Vec<Hash>) -> Result<Vec<Block>, AppError>;
 
-    fn get_block_hash_by_height(
+    fn get_block_hash_by_height<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
         height: &BlockHeight,
     ) -> Result<Option<Hash>, AppError>;
 
@@ -39,27 +40,27 @@ pub trait BlockchainRepository: Send + Sync + Debug {
         height_range: RangeInclusive<BlockHeight>,
     ) -> Result<Vec<Hash>, AppError>;
 
-    fn get_height(
+    fn get_height<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
         hash: &Hash,
     ) -> Result<Option<BlockHeight>, AppError>;
 
-    fn insert_height(
+    fn insert_height<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
         height: BlockHeight,
         block_hash: &Hash,
     ) -> Result<(), AppError>;
 
-    fn get_tip(
+    fn get_tip<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
     ) -> Result<Option<Hash>, AppError>;
 
-    fn set_tip(
+    fn set_tip<'a>(
         &self,
-        tx_ctx: Option<&dyn AtomicTransactionContext>,
+        tx_ctx: Option<&'a dyn AtomicTransactionContext>,
         hash: &Hash,
     ) -> Result<(), AppError>;
 }
