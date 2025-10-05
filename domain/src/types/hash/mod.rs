@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use bincode::{Decode, Encode};
 use common::error::{AppError, CryptographicError};
 use std::fmt;
