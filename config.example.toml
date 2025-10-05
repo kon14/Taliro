@@ -1,0 +1,14 @@
+[http]
+    api_port = 4000
+    api_base_url = "http://localhost:4000"
+    master_key_secret = "7h3 c4k3 15 4 l13"
+
+[network]
+    # [WARNING] Ephemeral port (tcp/0) used by default; peers won't auto-reconnect on restart.
+    listen_address = "/ip4/0.0.0.0/tcp/0"
+    init_peers = []
+
+[node]
+
+[storage]
+    db_path = "./data/db"

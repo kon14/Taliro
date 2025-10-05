@@ -1,0 +1,91 @@
+version: '3.9'
+
+# This compose file sets up two taliro node instances.
+# Persistent storage is managed via a Docker volume.
+
+# Configuration:
+# - P2P networking ports aren't published to avoid conflicts; adjust as needed.
+# - Master key dev API authorization is disabled by default; enable via non-empty env if needed.
+# - A TOML config file may be provided via $CONFIG_PATH; see volume sections.
+
+# Networking:
+# This setup requires DNS resolution between containers.
+# If you're facing issues (especially under Podman), make sure DNS support is enabled.
+# Troubleshooting steps are provided at EOF.
+
+services:
+  taliro-node-alpha:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: taliro:latest
+    container_name: taliro-node-alpha
+    ports:
+      - '${API_PORT:-4100}:4100'  # HTTP API port
+      # - '${P2P_PORT:-2048}:2048'  # P2P networking port
+    environment:
+      STORAGE_DB_PATH: /app/data/db_alpha
+      HTTP_API_PORT: 4100
+      HTTP_API_BASE_URL: 'http://localhost:4100'
+      HTTP_MASTER_KEY_SECRET: '${HTTP_MASTER_KEY_SECRET:-}' # empty values are ignored
+      NETWORK_LISTEN_ADDRESS: '/ip4/0.0.0.0/tcp/2048'
+      NETWORK_INIT_PEERS: '/dns4/taliro-node-beta/tcp/2049/p2p/12D3KooWKwUzXLNEAF97yuvyvWNVVunxAULArPj7pHWAvSveU1rc;'
+      NETWORK_IDENTITY_KEY_PAIR: 'CAESQPDur8zTyaDoZwmCIhtpdaE5s-TjOZd8iQhHKaaL7hQ6-nZnaha4CWVWEtIfYx4Vx53sxrChvlm25_EhXftu9Yo'
+      RUST_LOG: info
+      # CONFIG_PATH: /app/volume.config.toml
+    volumes:
+      - blockchain_data:/app/data
+      # - "${CONFIG_PATH}:/app/volume.config.toml:ro"
+    restart: unless-stopped
+    networks:
+      - taliro-net
+
+  taliro-node-beta:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: taliro:latest
+    container_name: taliro-node-beta
+    ports:
+      - '${API_PORT:-4200}:4200'  # HTTP API port
+      # - '${P2P_PORT:-2049}:2049'  # P2P networking port
+    environment:
+      STORAGE_DB_PATH: /app/data/db_beta
+      HTTP_API_PORT: 4200
+      HTTP_API_BASE_URL: 'http://localhost:4200'
+      HTTP_MASTER_KEY_SECRET: '${HTTP_MASTER_KEY_SECRET:-}' # empty values are ignored
+      NETWORK_LISTEN_ADDRESS: '/ip4/0.0.0.0/tcp/2049'
+      NETWORK_INIT_PEERS: '/dns4/taliro-node-alpha/tcp/2048/p2p/12D3KooWSg4ox9udRcwrjo8ETg1gjB7g5wSSwjVMGKWJiqF9XjdB;'
+      NETWORK_IDENTITY_KEY_PAIR: 'CAESQNaiADCcs1buWnhLrOfQNWDeWl3n0LuUvWlkfiQgtaqYlmemjdyNNLfdj3m_wADliPaJwsiDCoC_JSi_gCO2RqU'
+      RUST_LOG: info
+      # CONFIG_PATH: /app/volume.config.toml
+    volumes:
+      - blockchain_data:/app/data
+      # - "${CONFIG_PATH}:/app/volume.config.toml:ro"
+    restart: unless-stopped
+    networks:
+      - taliro-net
+
+volumes:
+  blockchain_data:
+    external: false
+    driver: local
+
+networks:
+  taliro-net:
+    name: taliro-net
+    driver: bridge
+
+# [Networking Troubleshooting]
+# Certain compose configurations don't respect container sections' network settings.
+# In such cases, the network is being brought up, but containers aren't attached to it.
+# They instead end up on the default bridge network, which typically lacks DNS support.
+#
+# You may confirm this with:
+# > docker container list --filter 'network=taliro-net' --format '{{print .Names}}'
+#
+# Working around this compose bug involves manually connecting the containers to the desired network.
+# Then restarting them to ensure /etc/resolv.conf is updated with the correct DNS settings.
+# > docker network connect taliro-net taliro-node-alpha
+# > docker network connect taliro-net taliro-node-beta
+# > docker restart taliro-node-alpha taliro-node-beta

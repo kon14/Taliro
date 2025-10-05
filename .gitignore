@@ -1,0 +1,48 @@
+# Build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+examples/
+
+# Test files
+tests/
+
+# Development tools
+.cargo/
+.rustfmt.toml
+clippy.toml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Local data storage directories
+data/
+
+# Logs
+*.log
+logs/

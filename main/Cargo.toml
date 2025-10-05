@@ -1,0 +1,19 @@
+[package]
+name = "main"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "Taliro"
+path = "src/main.rs"
+
+[dependencies]
+application = { path = "../application" }
+common = { path = "../common" }
+domain = { path = "../domain" }
+presentation = { path = "../presentation" }
+infrastructure = { path = "../infrastructure" }
+dotenv = "0.15.0"
+env_logger = "0.11.8"
+tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread", "time", "signal"] }
+toml = "0.9.5"

@@ -1,0 +1,10 @@
+[package]
+name = "application"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+common = { path = "../common" }
+domain = { path = "../domain" }
+async-trait = "0.1.89"
+tokio = "1.47.1"

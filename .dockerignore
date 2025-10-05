@@ -1,0 +1,61 @@
+# Build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+lefthook.yml
+
+# Documentation
+*.md
+docs/
+examples/
+
+# Test files
+tests/
+
+# Development tools
+.cargo/
+.rustfmt.toml
+clippy.toml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Local data
+data/
+
+# Docker files
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Logs
+*.log
+logs/
+
+# Example files
+*.example*
+*.example

@@ -1,0 +1,14 @@
+[package]
+name = "infrastructure"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+application = { path = "../application" }
+common = { path = "../common" }
+domain = { path = "../domain" }
+bincode = { version = "2.0.1", features = ["derive"] }
+sled = "0.34.7"
+async-trait = "0.1.89"
+tokio = "1.47.1"
+libp2p = { version = "0.56.0", features = ["tokio", "gossipsub", "kad", "macros", "tcp", "yamux", "noise", "request-response", "dns"] }

@@ -1,0 +1,9 @@
+output:
+  - failure
+pre-commit:
+  parallel: true
+  commands:
+    cargo_fmt_check:
+      run: |
+        echo "✍️ Checking your messed up code formatting..."
+        cargo fmt -- --check

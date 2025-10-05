@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "application",
+    "common",
+    "domain",
+    "infrastructure",
+    "macros",
+    "main",
+    "presentation",
+]
+resolver = "2"
