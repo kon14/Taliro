@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::entities::transaction::{TransactionOutPoint, Utxo};
 use crate::repos::utxo::UtxoRepository;
 use common::error::AppError;
