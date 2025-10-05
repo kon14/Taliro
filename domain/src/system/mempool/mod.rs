@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::entities::block::Block;
 use crate::entities::transaction::Transaction;
 use crate::types::hash::Hash;
