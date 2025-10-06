@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use common::config::network::NetworkConfig;
 use common::error::AppError;
 use common::{
-    log_net_debug, log_net_error, log_net_gs_error, log_net_info, log_net_taliro_error,
-    log_net_taliro_trace, log_net_trace, log_net_warn,
+    log_net_debug, log_net_error, log_net_gs_debug, log_net_gs_error, log_net_info,
+    log_net_taliro_error, log_net_taliro_trace, log_net_trace, log_net_warn,
 };
 use domain::encode::TryEncode;
 use domain::repos::network::NetworkRepository;
@@ -127,13 +127,21 @@ impl Libp2pNetworkEngine {
                     log_net_gs_error!("Failed to encode GossipsubNetworkEvent for broadcasting.");
                     return;
                 };
-                let Ok(_) = swarm
+                if let Err(err) = swarm
                     .behaviour_mut()
                     .get_gossipsub_mut()
                     .publish(topic.clone(), data)
-                else {
-                    log_net_gs_error!("Failed to publish GossipsubNetworkEvent to gossipsub.");
-                    return;
+                {
+                    match err {
+                        libp2p::gossipsub::PublishError::NoPeersSubscribedToTopic => {
+                            log_net_gs_debug!("No gossipsub peers subscribed to topic: {topic}");
+                        }
+                        err => {
+                            log_net_gs_error!(
+                                "Failed to publish GossipsubNetworkEvent to gossipsub: {err}"
+                            );
+                        }
+                    }
                 };
             }
             NetworkEvent::Taliro(event) => {
