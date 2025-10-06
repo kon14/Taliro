@@ -239,6 +239,16 @@ impl NodeRunning {
                 responder.respond(res);
                 HandleBusEventResponse::Continue
             }
+            NodeCommandRequest::MempoolGetPaginatedTransactions(pagination, responder) => {
+                let res = async {
+                    let (transactions, count) =
+                        self.mempool.get_paginated_transactions(pagination).await?;
+                    Ok((transactions, count))
+                }
+                .await;
+                responder.respond(res);
+                HandleBusEventResponse::Continue
+            }
             NodeCommandRequest::MempoolGetUnconfirmedTransactionsByHashes(tx_hashes, responder) => {
                 let res = async {
                     let mut transactions = Vec::with_capacity(tx_hashes.len());

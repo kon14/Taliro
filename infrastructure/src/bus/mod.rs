@@ -1,6 +1,7 @@
 use crate::ext::TryFromStrDomainNetworkAddressExtInfrastructure;
 use async_trait::async_trait;
 use common::error::AppError;
+use common::params::PaginationParams;
 use domain::entities::block::{Block, BlockHeight, BlockTemplate, NonValidatedBlock};
 use domain::entities::transaction::{
     NonValidatedTransaction, Transaction, TransactionOutPoint, Utxo,
@@ -234,6 +235,27 @@ impl CommandResponderFactory for NodeCommandResponderFactory {
 
         let command =
             NodeCommandRequest::MempoolPlaceUnconfirmedTransaction(transaction, responder);
+
+        let fut = Box::pin(async move {
+            rx.await
+                .expect("Responder dropped without sending response!") // TODO: handle error properly
+        });
+
+        (command, fut)
+    }
+
+    fn build_mp_get_paginated_transactions(
+        &self,
+        pagination: PaginationParams,
+    ) -> (
+        NodeCommandRequest,
+        Pin<Box<dyn Future<Output = Result<(Vec<Transaction>, usize), AppError>> + Send>>,
+    ) {
+        let (tx, rx) = oneshot::channel();
+        let responder = Box::new(TokioResponder(tx))
+            as Box<dyn CommandResponder<Result<(Vec<Transaction>, usize), AppError>> + Send>;
+
+        let command = NodeCommandRequest::MempoolGetPaginatedTransactions(pagination, responder);
 
         let fut = Box::pin(async move {
             rx.await

@@ -8,6 +8,7 @@ use crate::types::hash::Hash;
 use crate::types::network::{NetworkAddress, NetworkIdentityKeypair, NetworkPeerId};
 use async_trait::async_trait;
 use common::error::AppError;
+use common::params::PaginationParams;
 use derivative::Derivative;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
@@ -82,6 +83,15 @@ pub enum NodeCommandRequest {
         NonValidatedTransaction,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Transaction, AppError>> + Send>,
+    ),
+
+    /// Dev-administered command to retrieve mempool transactions.<br />
+    /// Accepts pagination parameters.<br />
+    /// Returns the paginated transactions along with the total count of transactions in the mempool.
+    MempoolGetPaginatedTransactions(
+        PaginationParams,
+        #[derivative(Debug = "ignore")]
+        Box<dyn CommandResponder<Result<(Vec<Transaction>, usize), AppError>> + Send>,
     ),
 
     /// Dev-administered command to retrieve unconfirmed transactions by their hashes.
@@ -215,6 +225,14 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
     ) -> (
         NodeCommandRequest,
         Pin<Box<dyn Future<Output = Result<Transaction, AppError>> + Send>>,
+    );
+
+    fn build_mp_get_paginated_transactions(
+        &self,
+        pagination: PaginationParams,
+    ) -> (
+        NodeCommandRequest,
+        Pin<Box<dyn Future<Output = Result<(Vec<Transaction>, usize), AppError>> + Send>>,
     );
 
     fn build_mp_cmd_get_unconfirmed_transactions_by_hashes(

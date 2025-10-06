@@ -5,6 +5,7 @@ use crate::genesis::config::{GenesisConfig, GenesisConfigUtxoFunds};
 use crate::types::hash::Hash;
 use crate::types::sign::PublicKey;
 use crate::types::time::DateTime;
+use common::params::PaginationParams;
 
 fn create_test_genesis_config() -> GenesisConfig {
     let wallet_pub_key = "59f783b83cf3b6552f53044743ac3454a84ed9b47897ef1576e64662363dbd6b"
@@ -54,6 +55,10 @@ fn create_mock_transaction(seed: u8) -> Transaction {
     Transaction::_new_validated(tx)
 }
 
+// ============================================================================
+// new()
+// ============================================================================
+
 #[tokio::test]
 async fn test_new_mempool_is_empty() {
     let mempool = DefaultMempool::new();
@@ -64,84 +69,9 @@ async fn test_new_mempool_is_empty() {
     assert!(result.is_none(), "New mempool should be empty");
 }
 
-#[tokio::test]
-async fn test_add_transaction() {
-    let mempool = DefaultMempool::new();
-    let tx = create_mock_transaction(1);
-    let tx_hash = tx.get_hash();
-
-    mempool.add_transaction(tx.clone()).await.unwrap();
-
-    let retrieved = mempool.get_transaction(&tx_hash).await;
-    assert!(
-        retrieved.is_some(),
-        "Transaction should be added to mempool"
-    );
-    assert_eq!(
-        retrieved.unwrap().get_hash(),
-        tx_hash,
-        "Retrieved transaction should match"
-    );
-}
-
-#[tokio::test]
-async fn test_add_multiple_transactions() {
-    let mempool = DefaultMempool::new();
-    let tx1 = create_mock_transaction(1);
-    let tx2 = create_mock_transaction(2);
-    let tx3 = create_mock_transaction(3);
-
-    let hash1 = tx1.get_hash();
-    let hash2 = tx2.get_hash();
-    let hash3 = tx3.get_hash();
-
-    mempool.add_transaction(tx1).await.unwrap();
-    mempool.add_transaction(tx2).await.unwrap();
-    mempool.add_transaction(tx3).await.unwrap();
-
-    assert!(
-        mempool.get_transaction(&hash1).await.is_some(),
-        "Transaction 1 should exist"
-    );
-    assert!(
-        mempool.get_transaction(&hash2).await.is_some(),
-        "Transaction 2 should exist"
-    );
-    assert!(
-        mempool.get_transaction(&hash3).await.is_some(),
-        "Transaction 3 should exist"
-    );
-}
-
-#[tokio::test]
-async fn test_get_nonexistent_transaction() {
-    let mempool = DefaultMempool::new();
-    let fake_hash = Hash::new([99u8; 32]);
-
-    let result = mempool.get_transaction(&fake_hash).await;
-
-    assert!(
-        result.is_none(),
-        "Should return None for non-existent transaction"
-    );
-}
-
-#[tokio::test]
-async fn test_add_duplicate_transaction_overwrites() {
-    let mempool = DefaultMempool::new();
-    let tx = create_mock_transaction(1);
-    let tx_hash = tx.get_hash();
-
-    // Add the same transaction twice
-    mempool.add_transaction(tx.clone()).await.unwrap();
-    mempool.add_transaction(tx.clone()).await.unwrap();
-
-    let retrieved = mempool.get_transaction(&tx_hash).await;
-    assert!(
-        retrieved.is_some(),
-        "Transaction should still exist after duplicate add"
-    );
-}
+// ============================================================================
+// apply_block()
+// ============================================================================
 
 #[tokio::test]
 async fn test_apply_block_removes_transactions() {
@@ -214,6 +144,114 @@ async fn test_apply_block_with_no_matching_transactions() {
 }
 
 #[tokio::test]
+async fn test_apply_block_to_empty_mempool() {
+    let mempool = DefaultMempool::new();
+
+    // Create a block with transactions
+    let tx = create_mock_transaction(1);
+    let block = create_test_block_with_transactions(vec![tx]);
+
+    // Apply block to empty mempool (should not error)
+    let result = mempool.apply_block(&block).await;
+
+    assert!(
+        result.is_ok(),
+        "Applying block to empty mempool should succeed"
+    );
+}
+
+// ============================================================================
+// add_transaction()
+// ============================================================================
+
+#[tokio::test]
+async fn test_add_transaction() {
+    let mempool = DefaultMempool::new();
+    let tx = create_mock_transaction(1);
+    let tx_hash = tx.get_hash();
+
+    mempool.add_transaction(tx.clone()).await.unwrap();
+
+    let retrieved = mempool.get_transaction(&tx_hash).await;
+    assert!(
+        retrieved.is_some(),
+        "Transaction should be added to mempool"
+    );
+    assert_eq!(
+        retrieved.unwrap().get_hash(),
+        tx_hash,
+        "Retrieved transaction should match"
+    );
+}
+
+#[tokio::test]
+async fn test_add_multiple_transactions() {
+    let mempool = DefaultMempool::new();
+    let tx1 = create_mock_transaction(1);
+    let tx2 = create_mock_transaction(2);
+    let tx3 = create_mock_transaction(3);
+
+    let hash1 = tx1.get_hash();
+    let hash2 = tx2.get_hash();
+    let hash3 = tx3.get_hash();
+
+    mempool.add_transaction(tx1).await.unwrap();
+    mempool.add_transaction(tx2).await.unwrap();
+    mempool.add_transaction(tx3).await.unwrap();
+
+    assert!(
+        mempool.get_transaction(&hash1).await.is_some(),
+        "Transaction 1 should exist"
+    );
+    assert!(
+        mempool.get_transaction(&hash2).await.is_some(),
+        "Transaction 2 should exist"
+    );
+    assert!(
+        mempool.get_transaction(&hash3).await.is_some(),
+        "Transaction 3 should exist"
+    );
+}
+
+#[tokio::test]
+async fn test_add_duplicate_transaction_overwrites() {
+    let mempool = DefaultMempool::new();
+    let tx = create_mock_transaction(1);
+    let tx_hash = tx.get_hash();
+
+    // Add the same transaction twice
+    mempool.add_transaction(tx.clone()).await.unwrap();
+    mempool.add_transaction(tx.clone()).await.unwrap();
+
+    let retrieved = mempool.get_transaction(&tx_hash).await;
+    assert!(
+        retrieved.is_some(),
+        "Transaction should still exist after duplicate add"
+    );
+}
+
+// ============================================================================
+// get_transaction()
+// ============================================================================
+
+#[tokio::test]
+async fn test_get_nonexistent_transaction() {
+    let mempool = DefaultMempool::new();
+    let fake_hash = Hash::new([99u8; 32]);
+
+    let result = mempool.get_transaction(&fake_hash).await;
+
+    assert!(
+        result.is_none(),
+        "Should return None for non-existent transaction"
+    );
+}
+
+// ============================================================================
+// rm_transaction()
+// ============================================================================
+
+#[tokio::test]
 async fn test_rm_transaction_removes_and_returns() {
     let mempool = DefaultMempool::new();
     let tx = create_mock_transaction(1);
@@ -249,6 +287,243 @@ async fn test_rm_nonexistent_transaction() {
     );
 }
 
+// ============================================================================
+// get_paginated_transactions()
+// ============================================================================
+
+#[tokio::test]
+async fn test_get_paginated_transactions_empty_mempool() {
+    let mempool = DefaultMempool::new();
+    let pagination = PaginationParams { skip: 0, limit: 10 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed on empty mempool");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(transactions.len(), 0, "Should return empty list");
+    assert_eq!(count, 0, "Total count should be 0");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_first_page() {
+    let mempool = DefaultMempool::new();
+
+    // Add 5 transactions
+    for i in 1..=5 {
+        let tx = create_mock_transaction(i);
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    let pagination = PaginationParams { skip: 0, limit: 3 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(transactions.len(), 3, "Should return 3 transactions");
+    assert_eq!(count, 5, "Total count should be 5");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_second_page() {
+    let mempool = DefaultMempool::new();
+
+    // Add 10 transactions
+    for i in 1..=10 {
+        let tx = create_mock_transaction(i);
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    let pagination = PaginationParams { skip: 5, limit: 5 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(transactions.len(), 5, "Should return 5 transactions");
+    assert_eq!(count, 10, "Total count should be 10");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_skip_beyond_total() {
+    let mempool = DefaultMempool::new();
+
+    // Add 5 transactions
+    for i in 1..=5 {
+        let tx = create_mock_transaction(i);
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    let pagination = PaginationParams { skip: 10, limit: 5 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(
+        transactions.len(),
+        0,
+        "Should return empty list when skip exceeds total"
+    );
+    assert_eq!(count, 5, "Total count should still be 5");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_limit_exceeds_remaining() {
+    let mempool = DefaultMempool::new();
+
+    // Add 7 transactions
+    for i in 1..=7 {
+        let tx = create_mock_transaction(i);
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    let pagination = PaginationParams { skip: 5, limit: 10 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(
+        transactions.len(),
+        2,
+        "Should return only remaining 2 transactions"
+    );
+    assert_eq!(count, 7, "Total count should be 7");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_limit_zero() {
+    let mempool = DefaultMempool::new();
+
+    // Add 5 transactions
+    for i in 1..=5 {
+        let tx = create_mock_transaction(i);
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    let pagination = PaginationParams { skip: 0, limit: 0 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(
+        transactions.len(),
+        0,
+        "Should return empty list with limit 0"
+    );
+    assert_eq!(count, 5, "Total count should still be 5");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_single_transaction() {
+    let mempool = DefaultMempool::new();
+
+    // Add 1 transaction
+    let tx = create_mock_transaction(1);
+    mempool.add_transaction(tx).await.unwrap();
+
+    let pagination = PaginationParams { skip: 0, limit: 10 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(transactions.len(), 1, "Should return 1 transaction");
+    assert_eq!(count, 1, "Total count should be 1");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_exact_page_size() {
+    let mempool = DefaultMempool::new();
+
+    // Add exactly 10 transactions
+    for i in 1..=10 {
+        let tx = create_mock_transaction(i);
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    let pagination = PaginationParams { skip: 0, limit: 10 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(transactions.len(), 10, "Should return all 10 transactions");
+    assert_eq!(count, 10, "Total count should be 10");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_multiple_pages() {
+    let mempool = DefaultMempool::new();
+
+    // Add 25 transactions
+    for i in 1..=25 {
+        let tx = create_mock_transaction(i);
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    // Test page 1
+    let page1 = PaginationParams { skip: 0, limit: 10 };
+    let result1 = mempool.get_paginated_transactions(page1).await.unwrap();
+    assert_eq!(result1.0.len(), 10, "Page 1 should have 10 items");
+    assert_eq!(result1.1, 25, "Total count should be 25");
+
+    // Test page 2
+    let page2 = PaginationParams {
+        skip: 10,
+        limit: 10,
+    };
+    let result2 = mempool.get_paginated_transactions(page2).await.unwrap();
+    assert_eq!(result2.0.len(), 10, "Page 2 should have 10 items");
+    assert_eq!(result2.1, 25, "Total count should be 25");
+
+    // Test page 3 (partial)
+    let page3 = PaginationParams {
+        skip: 20,
+        limit: 10,
+    };
+    let result3 = mempool.get_paginated_transactions(page3).await.unwrap();
+    assert_eq!(result3.0.len(), 5, "Page 3 should have 5 items");
+    assert_eq!(result3.1, 25, "Total count should be 25");
+}
+
+#[tokio::test]
+async fn test_get_paginated_transactions_after_removal() {
+    let mempool = DefaultMempool::new();
+
+    // Add 10 transactions
+    let mut tx_hashes = vec![];
+    for i in 1..=10 {
+        let tx = create_mock_transaction(i);
+        tx_hashes.push(tx.get_hash());
+        mempool.add_transaction(tx).await.unwrap();
+    }
+
+    // Remove 3 transactions
+    mempool.rm_transaction(&tx_hashes[0]).await;
+    mempool.rm_transaction(&tx_hashes[1]).await;
+    mempool.rm_transaction(&tx_hashes[2]).await;
+
+    let pagination = PaginationParams { skip: 0, limit: 10 };
+
+    let result = mempool.get_paginated_transactions(pagination).await;
+
+    assert!(result.is_ok(), "Should succeed");
+    let (transactions, count) = result.unwrap();
+    assert_eq!(
+        transactions.len(),
+        7,
+        "Should return 7 remaining transactions"
+    );
+    assert_eq!(count, 7, "Total count should be 7 after removals");
+}
+
+// ============================================================================
+// Concurrency
+// ============================================================================
+
 #[tokio::test]
 async fn test_concurrent_add_and_get() {
     use tokio::task;
@@ -277,18 +552,54 @@ async fn test_concurrent_add_and_get() {
 }
 
 #[tokio::test]
-async fn test_apply_block_to_empty_mempool() {
-    let mempool = DefaultMempool::new();
+async fn test_get_paginated_transactions_concurrent_access() {
+    use tokio::task;
 
-    // Create a block with transactions
-    let tx = create_mock_transaction(1);
-    let block = create_test_block_with_transactions(vec![tx]);
+    let mempool = std::sync::Arc::new(DefaultMempool::new());
 
-    // Apply block to empty mempool (should not error)
-    let result = mempool.apply_block(&block).await;
+    // Add transactions concurrently
+    let mut handles = vec![];
+    for i in 1..=20 {
+        let mempool_clone = mempool.clone();
+        let handle = task::spawn(async move {
+            let tx = create_mock_transaction(i);
+            mempool_clone.add_transaction(tx).await.unwrap();
+        });
+        handles.push(handle);
+    }
 
-    assert!(
-        result.is_ok(),
-        "Applying block to empty mempool should succeed"
-    );
+    for handle in handles {
+        handle.await.unwrap();
+    }
+
+    // Test pagination while concurrent reads might be happening
+    let mempool_clone1 = mempool.clone();
+    let mempool_clone2 = mempool.clone();
+
+    let handle1 = task::spawn(async move {
+        let pagination = PaginationParams { skip: 0, limit: 10 };
+        mempool_clone1.get_paginated_transactions(pagination).await
+    });
+
+    let handle2 = task::spawn(async move {
+        let pagination = PaginationParams {
+            skip: 10,
+            limit: 10,
+        };
+        mempool_clone2.get_paginated_transactions(pagination).await
+    });
+
+    let result1 = handle1.await.unwrap();
+    let result2 = handle2.await.unwrap();
+
+    assert!(result1.is_ok(), "First pagination should succeed");
+    assert!(result2.is_ok(), "Second pagination should succeed");
+
+    let (txs1, count1) = result1.unwrap();
+    let (txs2, count2) = result2.unwrap();
+
+    assert_eq!(count1, 20, "Total count should be 20");
+    assert_eq!(count2, 20, "Total count should be 20");
+    assert_eq!(txs1.len(), 10, "First page should have 10 items");
+    assert_eq!(txs2.len(), 10, "Second page should have 10 items");
 }

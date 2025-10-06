@@ -1,9 +1,11 @@
 use application::state::AppState;
 use utoipa::OpenApi;
 
+mod mempool;
 mod place_transaction;
 mod utxo;
 
+use mempool::*;
 use place_transaction::*;
 use utxo::*;
 
@@ -14,6 +16,7 @@ use utxo::*;
         place_unconfirmed_transaction,
     ),
     nest(
+        (path = "/mempool", api = DevelopmentTransactionsMempoolApiDoc),
         (path = "/utxo", api = DevelopmentTransactionsUtxoApiDoc),
     ),
     tags(
@@ -28,5 +31,6 @@ pub fn declare_routes(base_path: &str) -> axum::Router<AppState> {
             &format!("{base_path}"),
             axum::routing::post(place_unconfirmed_transaction),
         )
+        .merge(mempool::declare_routes(&format!("{base_path}/mempool")))
         .merge(utxo::declare_routes(&format!("{base_path}/utxo")))
 }
