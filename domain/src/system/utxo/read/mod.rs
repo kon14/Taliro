@@ -7,6 +7,7 @@ use common::error::AppError;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+#[cfg_attr(test, mockall::automock)]
 pub trait UtxoSetReader: Send + Sync + Debug {
     fn get_utxo(&self, outpoint: &TransactionOutPoint) -> Result<Option<Utxo>, AppError>;
 

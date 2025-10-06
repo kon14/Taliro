@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::entities::transaction::{NonValidatedTransaction, Transaction, TransactionAmount, Utxo};
 use crate::system::utxo::UtxoSetReader;
 use async_trait::async_trait;
@@ -130,5 +133,46 @@ impl DefaultTransactionValidator {
         }
 
         Ok(())
+    }
+}
+
+/// Expose internal methods for unit testing.
+#[cfg(test)]
+impl DefaultTransactionValidator {
+    pub(super) fn pub_validate_structure(
+        &self,
+        tx: &NonValidatedTransaction,
+    ) -> Result<(), AppError> {
+        self.validate_structure(tx)
+    }
+
+    #[allow(unused)]
+    pub(super) fn pub_validate_signatures(
+        &self,
+        tx: &NonValidatedTransaction,
+    ) -> Result<(), AppError> {
+        self.validate_signatures(tx)
+    }
+
+    pub(super) async fn pub_validate_inputs_unspent(
+        &self,
+        tx: &NonValidatedTransaction,
+    ) -> Result<Vec<Utxo>, AppError> {
+        self.validate_inputs_unspent(tx).await
+    }
+
+    pub(super) fn pub_validate_output_values(
+        &self,
+        tx: &NonValidatedTransaction,
+    ) -> Result<(), AppError> {
+        self.validate_output_values(tx)
+    }
+
+    pub(super) fn pub_validate_balance(
+        &self,
+        tx: &NonValidatedTransaction,
+        fetched_input_utxos: &[Utxo],
+    ) -> Result<(), AppError> {
+        self.validate_balance(tx, fetched_input_utxos)
     }
 }
