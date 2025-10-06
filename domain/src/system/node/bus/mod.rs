@@ -78,8 +78,8 @@ pub enum NodeCommandRequest {
         Box<dyn CommandResponder<Result<Vec<Block>, AppError>> + Send>,
     ),
 
-    /// Dev-administered command to place an unconfirmed transaction into the mempool.
-    MempoolPlaceUnconfirmedTransaction(
+    /// Dev-administered command to place a mempool transaction into the mempool.
+    MempoolPlaceTransaction(
         NonValidatedTransaction,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Transaction, AppError>> + Send>,
@@ -94,8 +94,8 @@ pub enum NodeCommandRequest {
         Box<dyn CommandResponder<Result<(Vec<Transaction>, usize), AppError>> + Send>,
     ),
 
-    /// Dev-administered command to retrieve unconfirmed transactions by their hashes.
-    MempoolGetUnconfirmedTransactionsByHashes(
+    /// Dev-administered command to retrieve mempool transactions by their hashes.
+    MempoolGetTransactionsByHashes(
         Vec<Hash>,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Vec<Transaction>, AppError>> + Send>,
@@ -219,7 +219,7 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<Vec<Block>, AppError>> + Send>>,
     );
 
-    fn build_mp_cmd_place_unconfirmed_transaction(
+    fn build_mp_cmd_place_transaction(
         &self,
         tx: NonValidatedTransaction,
     ) -> (
@@ -235,7 +235,7 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<(Vec<Transaction>, usize), AppError>> + Send>>,
     );
 
-    fn build_mp_cmd_get_unconfirmed_transactions_by_hashes(
+    fn build_mp_cmd_get_transactions_by_hashes(
         &self,
         tx_hashes: Vec<Hash>,
     ) -> (

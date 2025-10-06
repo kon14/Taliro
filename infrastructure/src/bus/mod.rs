@@ -222,7 +222,7 @@ impl CommandResponderFactory for NodeCommandResponderFactory {
         (command, fut)
     }
 
-    fn build_mp_cmd_place_unconfirmed_transaction(
+    fn build_mp_cmd_place_transaction(
         &self,
         transaction: NonValidatedTransaction,
     ) -> (
@@ -233,8 +233,7 @@ impl CommandResponderFactory for NodeCommandResponderFactory {
         let responder = Box::new(TokioResponder(tx))
             as Box<dyn CommandResponder<Result<Transaction, AppError>> + Send>;
 
-        let command =
-            NodeCommandRequest::MempoolPlaceUnconfirmedTransaction(transaction, responder);
+        let command = NodeCommandRequest::MempoolPlaceTransaction(transaction, responder);
 
         let fut = Box::pin(async move {
             rx.await
@@ -265,7 +264,7 @@ impl CommandResponderFactory for NodeCommandResponderFactory {
         (command, fut)
     }
 
-    fn build_mp_cmd_get_unconfirmed_transactions_by_hashes(
+    fn build_mp_cmd_get_transactions_by_hashes(
         &self,
         tx_hashes: Vec<Hash>,
     ) -> (
@@ -276,8 +275,7 @@ impl CommandResponderFactory for NodeCommandResponderFactory {
         let responder = Box::new(TokioResponder(tx))
             as Box<dyn CommandResponder<Result<Vec<Transaction>, AppError>> + Send>;
 
-        let command =
-            NodeCommandRequest::MempoolGetUnconfirmedTransactionsByHashes(tx_hashes, responder);
+        let command = NodeCommandRequest::MempoolGetTransactionsByHashes(tx_hashes, responder);
 
         let fut = Box::pin(async move {
             rx.await

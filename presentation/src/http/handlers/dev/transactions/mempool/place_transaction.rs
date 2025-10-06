@@ -2,8 +2,8 @@ use crate::auth::MasterKeyAuthContextExtractor;
 use crate::dtos::transaction::{TransactionOutPointPresentationDto, TransactionPresentationDto};
 use crate::types::error::PresentationError;
 use application::state::AppState;
-use application::usecases::dev::transactions::{
-    PlaceUnconfirmedTransactionUseCaseRequest, PlaceUnconfirmedTransactionUseCaseResponse,
+use application::usecases::dev::transactions::mempool::{
+    PlaceMempoolTransactionUseCaseRequest, PlaceMempoolTransactionUseCaseResponse,
 };
 use axum::extract::State;
 use axum::Json;
@@ -12,14 +12,14 @@ use domain::entities::transaction::{TransactionAmount, TransactionOutPoint};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// Places a new unconfirmed transaction.
+/// Places a new transaction in the mempool.
 /// Accepts a wallet's private signing key for convenience.
 #[utoipa::path(
     tag = "Development / Transactions",
     post,
     path = "/",
     responses(
-        (status = 200, description = "Success", body = PlaceUnconfirmedTransactionHttpResponseBody),
+        (status = 200, description = "Success", body = PlaceMempoolTransactionHttpResponseBody),
         (status = 401, description = "Unauthorized"),
         (status = 500, description = "Failure"),
     ),
@@ -27,27 +27,25 @@ use utoipa::ToSchema;
         ("bearerAuth" = [])
     ),
 )]
-pub(crate) async fn place_unconfirmed_transaction(
+pub(crate) async fn place_transaction(
     State(state): State<AppState>,
     _: MasterKeyAuthContextExtractor,
-    Json(payload): Json<PlaceUnconfirmedTransactionHttpRequestBody>,
-) -> Result<Json<PlaceUnconfirmedTransactionHttpResponseBody>, PresentationError> {
+    Json(payload): Json<PlaceMempoolTransactionHttpRequestBody>,
+) -> Result<Json<PlaceMempoolTransactionHttpResponseBody>, PresentationError> {
     let AppState {
-        place_unconfirmed_transaction_use_case,
+        place_mempool_transaction_use_case,
         ..
     } = state;
 
     let uc_req = payload.try_into()?;
-    let uc_res = place_unconfirmed_transaction_use_case
-        .execute(uc_req)
-        .await?;
-    let http_res: PlaceUnconfirmedTransactionHttpResponseBody = uc_res.into();
+    let uc_res = place_mempool_transaction_use_case.execute(uc_req).await?;
+    let http_res: PlaceMempoolTransactionHttpResponseBody = uc_res.into();
 
     Ok(Json(http_res))
 }
 
 #[derive(Deserialize, ToSchema)]
-pub(crate) struct PlaceUnconfirmedTransactionHttpRequestBody {
+pub(crate) struct PlaceMempoolTransactionHttpRequestBody {
     /// The sender wallet's private signing key.<br />
     /// Used for convenience in dev environment.
     #[schema(example = "ee593f0203f6e97c9ce47c6a8f15582a48635cb0354f515c1944c881091914a7")]
@@ -73,16 +71,14 @@ pub(crate) struct PlaceUnconfirmedTransactionHttpRequestBody {
 }
 
 #[derive(Serialize, ToSchema)]
-pub(crate) struct PlaceUnconfirmedTransactionHttpResponseBody {
+pub(crate) struct PlaceMempoolTransactionHttpResponseBody {
     transaction: TransactionPresentationDto,
 }
 
-impl TryFrom<PlaceUnconfirmedTransactionHttpRequestBody>
-    for PlaceUnconfirmedTransactionUseCaseRequest
-{
+impl TryFrom<PlaceMempoolTransactionHttpRequestBody> for PlaceMempoolTransactionUseCaseRequest {
     type Error = AppError;
 
-    fn try_from(req: PlaceUnconfirmedTransactionHttpRequestBody) -> Result<Self, Self::Error> {
+    fn try_from(req: PlaceMempoolTransactionHttpRequestBody) -> Result<Self, Self::Error> {
         let sender_private_key = req.sender_private_key.parse()?;
         let recipient_wallet_address = req.recipient_wallet_address.parse()?;
         let consumed_outpoints = req
@@ -100,10 +96,8 @@ impl TryFrom<PlaceUnconfirmedTransactionHttpRequestBody>
     }
 }
 
-impl From<PlaceUnconfirmedTransactionUseCaseResponse>
-    for PlaceUnconfirmedTransactionHttpResponseBody
-{
-    fn from(res: PlaceUnconfirmedTransactionUseCaseResponse) -> Self {
+impl From<PlaceMempoolTransactionUseCaseResponse> for PlaceMempoolTransactionHttpResponseBody {
+    fn from(res: PlaceMempoolTransactionUseCaseResponse) -> Self {
         Self {
             transaction: res.transaction.into(),
         }

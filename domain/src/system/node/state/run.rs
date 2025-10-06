@@ -229,7 +229,7 @@ impl NodeRunning {
                 responder.respond(res);
                 HandleBusEventResponse::Continue
             }
-            NodeCommandRequest::MempoolPlaceUnconfirmedTransaction(tx, responder) => {
+            NodeCommandRequest::MempoolPlaceTransaction(tx, responder) => {
                 let res = async {
                     let tx = self.tx_validator.validate_transaction(tx).await?;
                     self.mempool.add_transaction(tx.clone()).await?;
@@ -249,7 +249,7 @@ impl NodeRunning {
                 responder.respond(res);
                 HandleBusEventResponse::Continue
             }
-            NodeCommandRequest::MempoolGetUnconfirmedTransactionsByHashes(tx_hashes, responder) => {
+            NodeCommandRequest::MempoolGetTransactionsByHashes(tx_hashes, responder) => {
                 let res = async {
                     let mut transactions = Vec::with_capacity(tx_hashes.len());
                     for tx_hash in &tx_hashes {

@@ -20,8 +20,8 @@ pub struct AppState {
     pub add_network_peer_use_case: dev::network::AddNetworkPeerUseCase,
     pub get_mempool_transactions_use_case:
         dev::transactions::mempool::GetMempoolTransactionsUseCase,
-    pub place_unconfirmed_transaction_use_case:
-        dev::transactions::PlaceUnconfirmedTransactionUseCase,
+    pub place_mempool_transaction_use_case:
+        dev::transactions::mempool::PlaceMempoolTransactionUseCase,
     pub get_utxos_use_case: dev::transactions::utxo::GetUtxosUseCase,
 }
 
@@ -64,8 +64,8 @@ impl AppState {
                 bus_tx.clone(),
                 bus_tx_res_factory.clone(),
             );
-        let place_unconfirmed_transaction_use_case =
-            dev::transactions::PlaceUnconfirmedTransactionUseCase::new(
+        let place_mempool_transaction_use_case =
+            dev::transactions::mempool::PlaceMempoolTransactionUseCase::new(
                 bus_tx.clone(),
                 bus_tx_res_factory.clone(),
             );
@@ -88,7 +88,7 @@ impl AppState {
             get_network_peers_use_case,
             add_network_peer_use_case,
             get_mempool_transactions_use_case,
-            place_unconfirmed_transaction_use_case,
+            place_mempool_transaction_use_case,
             get_utxos_use_case,
         }
     }

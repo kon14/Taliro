@@ -10,12 +10,12 @@ use domain::types::wallet::WalletAddress;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct PlaceUnconfirmedTransactionUseCase {
+pub struct PlaceMempoolTransactionUseCase {
     bus_tx: Arc<dyn CommandSender>,
     bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
 }
 
-impl PlaceUnconfirmedTransactionUseCase {
+impl PlaceMempoolTransactionUseCase {
     pub fn new(
         bus_tx: Arc<dyn CommandSender>,
         bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
@@ -28,8 +28,8 @@ impl PlaceUnconfirmedTransactionUseCase {
 
     pub async fn execute(
         &self,
-        request: PlaceUnconfirmedTransactionUseCaseRequest,
-    ) -> Result<PlaceUnconfirmedTransactionUseCaseResponse, AppError> {
+        request: PlaceMempoolTransactionUseCaseRequest,
+    ) -> Result<PlaceMempoolTransactionUseCaseResponse, AppError> {
         // Build transaction inputs
         let utxos = self.get_utxos(request.consumed_outpoints).await?;
         let input_amount = self.get_input_amount(&utxos)?;
@@ -50,12 +50,10 @@ impl PlaceUnconfirmedTransactionUseCase {
         // Build transaction (pre-validation)
         let tx = NonValidatedTransaction::new(inputs, outputs, DateTime::now())?;
 
-        let (command, res_fut) = self
-            .bus_tx_res_factory
-            .build_mp_cmd_place_unconfirmed_transaction(tx);
+        let (command, res_fut) = self.bus_tx_res_factory.build_mp_cmd_place_transaction(tx);
         self.bus_tx.send(command).await?;
         let transaction = res_fut.await?;
-        let res = PlaceUnconfirmedTransactionUseCaseResponse { transaction };
+        let res = PlaceMempoolTransactionUseCaseResponse { transaction };
         Ok(res)
     }
 
@@ -121,7 +119,7 @@ impl PlaceUnconfirmedTransactionUseCase {
 }
 
 #[derive(Debug)]
-pub struct PlaceUnconfirmedTransactionUseCaseRequest {
+pub struct PlaceMempoolTransactionUseCaseRequest {
     pub sender_private_key: PrivateKey, // purely for dev convenience...
     pub recipient_wallet_address: WalletAddress,
     pub amount: TransactionAmount,
@@ -129,6 +127,6 @@ pub struct PlaceUnconfirmedTransactionUseCaseRequest {
 }
 
 #[derive(Debug)]
-pub struct PlaceUnconfirmedTransactionUseCaseResponse {
+pub struct PlaceMempoolTransactionUseCaseResponse {
     pub transaction: Transaction,
 }

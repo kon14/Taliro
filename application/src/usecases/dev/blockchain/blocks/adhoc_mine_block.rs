@@ -36,7 +36,7 @@ impl AdHocMineBlockUseCase {
         let tx_hashes = request.transaction_hashes;
         let (command, res_fut) = self
             .bus_tx_res_factory
-            .build_mp_cmd_get_unconfirmed_transactions_by_hashes(tx_hashes);
+            .build_mp_cmd_get_transactions_by_hashes(tx_hashes);
         self.bus_tx.send(command).await?;
         let transactions = res_fut.await?;
         let transactions = transactions.into_iter().map(|tx| tx.invalidate()).collect();
