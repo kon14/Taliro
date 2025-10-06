@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 /// Ensures <strong>individual</strong> transactions are valid according to consensus rules.<br />
 /// Does <strong>NOT</strong> handle block-level transaction validations!
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub(crate) trait TransactionValidator: Send + Sync + std::fmt::Debug {
     async fn validate_transaction(

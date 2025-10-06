@@ -14,6 +14,7 @@ use std::ops::RangeInclusive;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub(crate) trait Blockchain: Send + Sync + std::fmt::Debug {
     async fn add_block(&self, block: Block) -> Result<(), AppError>;

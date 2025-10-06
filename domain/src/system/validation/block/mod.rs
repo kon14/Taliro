@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use super::transaction::TransactionValidator;
 use crate::entities::block::{Block, NonValidatedBlock};
 use crate::entities::transaction::{
@@ -223,5 +226,78 @@ impl DefaultBlockValidator {
             }
         }
         Ok(())
+    }
+}
+
+/// Expose internal methods for unit testing.
+#[cfg(test)]
+impl DefaultBlockValidator {
+    #[allow(unused)]
+    pub(crate) fn pub_validate_block_structure_header(
+        &self,
+        block: &NonValidatedBlock,
+    ) -> Result<(), AppError> {
+        Self::validate_block_structure_header(block)
+    }
+
+    pub(crate) fn pub_validate_block_structure_merkle_root(
+        &self,
+        block: &NonValidatedBlock,
+    ) -> Result<(), AppError> {
+        Self::validate_block_structure_merkle_root(block)
+    }
+
+    pub(crate) fn pub_validate_block_structure_duplicate_transactions(
+        &self,
+        block: &NonValidatedBlock,
+    ) -> Result<(), AppError> {
+        Self::validate_block_structure_duplicate_transactions(block)
+    }
+
+    pub(crate) fn pub_validate_block_structure_non_empty_transactions(
+        &self,
+        block: &NonValidatedBlock,
+    ) -> Result<(), AppError> {
+        Self::validate_block_structure_non_empty_transactions(block)
+    }
+
+    pub(crate) fn pub_validate_block_structure_coinbase(
+        &self,
+        block: &NonValidatedBlock,
+    ) -> Result<(), AppError> {
+        Self::validate_block_structure_coinbase(block)
+    }
+
+    pub(crate) fn pub_validate_block_content_parent(
+        &self,
+        block: &NonValidatedBlock,
+        local_tip_hash: Option<&Hash>,
+    ) -> Result<(), AppError> {
+        self.validate_block_content_parent(block, local_tip_hash)
+    }
+
+    #[allow(unused)]
+    pub(crate) fn pub_validate_block_content_consensus(
+        &self,
+        block: &NonValidatedBlock,
+    ) -> Result<(), AppError> {
+        self.validate_block_content_consensus(block)
+    }
+
+    pub(crate) async fn pub_validate_block_content_transactions(
+        &self,
+        block: &NonValidatedBlock,
+        pre_genesis_chain: bool,
+    ) -> Result<(), AppError> {
+        self.validate_block_content_transactions(block, pre_genesis_chain)
+            .await
+    }
+
+    pub(crate) fn pub_validate_block_content_transactions_double_spends(
+        &self,
+        tx: &NonValidatedTransaction,
+        spent_outpoints: &mut HashSet<TransactionOutPoint>,
+    ) -> Result<(), AppError> {
+        self.validate_block_content_transactions_double_spends(tx, spent_outpoints)
     }
 }
