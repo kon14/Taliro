@@ -115,7 +115,8 @@ async fn handle_taliro_response_message_event(
     };
 
     log_net_taliro_trace!("Received response from {peer_id}:\n{:#?}", response);
-    let peer_id = NetworkPeerId::new_unchecked(peer_id.to_bytes(), peer_id.to_string());
+    // Already a PeerId
+    let peer_id = NetworkPeerId::_new_validated(peer_id.to_bytes(), peer_id.to_string());
 
     match response {
         TaliroProtocolResponse::BlockchainTip(block_info) => {

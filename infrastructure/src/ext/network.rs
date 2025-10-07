@@ -9,11 +9,11 @@ pub(crate) trait TryInfoLibp2pAddressExtInfrastructure {
 
 impl TryInfoLibp2pAddressExtInfrastructure for NetworkAddress {
     fn try_into_libp2p_addr(self) -> Result<libp2p::Multiaddr, AppError> {
-        // self.as_bytes().try_into().map_err(|err| AppError::internal(format!("Invalid network address: {}", err)))
-        // TODO: that^ was UTF-8... consider moving Multiaddr to domain (early validation)
         let str_bytes = self.get_address_bytes();
         let s = std::str::from_utf8(&str_bytes).map_err(|err| {
-            AppError::internal(format!("Invalid UTF-8 in network address: {}", err))
+            // This should NEVER happen, as NetworkAddress is always validated pre-construction!
+            // This indicates either corrupted persisted data or a bug in NetworkEntityValidator!
+            AppError::internal(format!("Invalid NetworkAddress ({self})! | Error {err}"))
         })?;
 
         s.parse::<libp2p::Multiaddr>()
@@ -47,41 +47,6 @@ impl TryIntoDomainKeypairExtInfrastructure for libp2p::identity::Keypair {
         let bytes = self.to_protobuf_encoding().to_app_error()?;
         let identity = domain::types::network::NetworkIdentityKeypair::from_proto_bytes(bytes);
         Ok(identity)
-    }
-}
-
-pub(crate) trait TryIntoDomainNetworkAddressExtInfrastructure {
-    fn try_into_domain_network_address(self) -> Result<NetworkAddress, AppError>;
-}
-
-impl TryIntoDomainNetworkAddressExtInfrastructure for libp2p::Multiaddr {
-    fn try_into_domain_network_address(self) -> Result<NetworkAddress, AppError> {
-        let bytes = self.to_string().into_bytes();
-        let peer_id = self.iter().find_map(|proto| match proto {
-            Protocol::P2p(peer_id) => Some(NetworkPeerId::new_unchecked(
-                peer_id.to_bytes(),
-                peer_id.to_string(),
-            )),
-            _ => None,
-        });
-        let address = NetworkAddress::new_unchecked(bytes, self.to_string(), peer_id);
-        Ok(address)
-    }
-}
-
-pub(crate) trait TryFromStrDomainNetworkAddressExtInfrastructure {
-    fn try_from_str(s: &str) -> Result<NetworkAddress, AppError>;
-}
-
-impl TryFromStrDomainNetworkAddressExtInfrastructure for NetworkAddress {
-    fn try_from_str(s: &str) -> Result<NetworkAddress, AppError> {
-        let libp2p_addr = s.parse::<libp2p::Multiaddr>().map_err(|err| {
-            AppError::internal(format!(
-                "Failed to parse network address as multiaddr: {err}"
-            ))
-        })?;
-        let address = libp2p_addr.try_into_domain_network_address()?;
-        Ok(address)
     }
 }
 
@@ -136,7 +101,7 @@ impl MultiaddrPushPeerIdExtInfrastructure for libp2p::Multiaddr {
                 if let Protocol::P2p(_) = proto {
                     if !replaced {
                         replaced = true;
-                        return Protocol::P2p(peer_id.clone());
+                        return Protocol::P2p(peer_id);
                     }
                 }
                 proto

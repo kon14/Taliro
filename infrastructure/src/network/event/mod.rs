@@ -47,13 +47,20 @@ impl AppNetworkEvent {
         bus_tx_res_factory: &Arc<dyn CommandResponderFactory>,
         network_repo: &Arc<dyn domain::repos::network::NetworkRepository>,
         termination_initiated: bool,
+        net_entity_validator: &Arc<dyn domain::system::network::validator::NetworkEntityValidator>,
     ) {
         match event {
             AppNetworkEvent::Gossipsub(event) => {
                 handle_gossipsub_event(event, swarm, bus_tx, bus_tx_res_factory).await;
             }
             AppNetworkEvent::Kademlia(event) => {
-                handle_kademlia_event(event, swarm, network_repo, termination_initiated);
+                handle_kademlia_event(
+                    event,
+                    swarm,
+                    network_repo,
+                    termination_initiated,
+                    net_entity_validator,
+                );
             }
             AppNetworkEvent::Taliro(event) => {
                 handle_taliro_event(event, swarm, bus_tx, bus_tx_res_factory).await;

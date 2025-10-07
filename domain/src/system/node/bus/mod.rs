@@ -279,14 +279,11 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
 
     fn build_net_cmd_add_peer(
         &self,
-        multiaddr_str: String,
-    ) -> Result<
-        (
-            NodeCommandRequest,
-            Pin<Box<dyn Future<Output = Result<AddPeerResponse, AppError>> + Send>>,
-        ),
-        AppError,
-    >;
+        network_address: NetworkAddress,
+    ) -> (
+        NodeCommandRequest,
+        Pin<Box<dyn Future<Output = Result<AddPeerResponse, AppError>> + Send>>,
+    );
 
     // TODO: add peer info
     fn build_p2p_cmd_receive_blockchain_tip_info(

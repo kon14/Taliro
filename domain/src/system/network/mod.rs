@@ -1,4 +1,5 @@
 pub mod event;
+pub mod validator;
 
 use crate::system::node::bus::{CommandResponderFactory, CommandSender};
 use async_trait::async_trait;

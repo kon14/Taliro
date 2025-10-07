@@ -1,6 +1,7 @@
 use application::state::AppState;
 use common::config::http::HttpConfig;
 use common::error::AppError;
+use domain::system::network::validator::NetworkEntityValidator;
 use domain::system::node::bus::{CommandResponderFactory, CommandSender};
 use presentation::utils::BuildHttpServerResponse;
 use std::sync::Arc;
@@ -10,6 +11,7 @@ pub(crate) async fn build_http_app_state(
     cfg: HttpConfig,
     bus_tx: Arc<dyn CommandSender>,
     bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+    net_entity_validator: Arc<dyn NetworkEntityValidator>,
 ) -> Result<AppState, AppError> {
     // Authentication
     let master_key_authenticator = Arc::new(
@@ -17,7 +19,12 @@ pub(crate) async fn build_http_app_state(
     );
 
     // App State
-    let app_state = AppState::new(bus_tx, bus_tx_res_factory, master_key_authenticator);
+    let app_state = AppState::new(
+        bus_tx,
+        bus_tx_res_factory,
+        master_key_authenticator,
+        net_entity_validator,
+    );
     Ok(app_state)
 }
 

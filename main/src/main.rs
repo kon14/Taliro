@@ -7,6 +7,7 @@ use common::config;
 use common::config::AppConfig;
 use common::error::AppError;
 use infrastructure::bus::NodeCommandResponderFactory;
+use infrastructure::network::validator::Libp2pNetworkEntityValidator;
 use infrastructure::storage::SledStorage;
 use presentation::utils::BuildHttpServerResponse;
 use std::sync::Arc;
@@ -38,7 +39,12 @@ async fn main() -> Result<(), AppError> {
     let (shutdown_tx, shutdown_rx) = bootstrap::term::handle_termination_signals(bus_tx.clone());
 
     // Prepare the P2P Network
-    let network = bootstrap::network::build_p2p_network(network_config, network_repo)?;
+    let net_entity_validator = Arc::new(Libp2pNetworkEntityValidator);
+    let network = bootstrap::network::build_p2p_network(
+        network_config,
+        network_repo,
+        net_entity_validator.clone(),
+    )?;
 
     // Prepare the Blockchain Node
     let (node, outbox_relay, block_sync_queue, block_proc_queue) = bootstrap::node::build_node(
@@ -66,9 +72,13 @@ async fn main() -> Result<(), AppError> {
     let node_run_fut = node.run(bus_rx, shutdown_tx, shutdown_rx.resubscribe());
 
     // Prepare the HTTP Server
-    let app_state =
-        bootstrap::http::build_http_app_state(http_config.clone(), bus_tx, bus_tx_res_factory)
-            .await?;
+    let app_state = bootstrap::http::build_http_app_state(
+        http_config.clone(),
+        bus_tx,
+        bus_tx_res_factory,
+        net_entity_validator,
+    )
+    .await?;
     let BuildHttpServerResponse {
         server: server_run_fut,
         ..

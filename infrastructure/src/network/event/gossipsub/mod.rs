@@ -60,7 +60,8 @@ async fn handle_gossipsub_message_event(
     };
 
     log_net_kad_debug!("Received gossipsub GossipsubNetworkEvent: {:?}", event);
-    let peer_id = NetworkPeerId::new_unchecked(
+    // Already a PeerId
+    let peer_id = NetworkPeerId::_new_validated(
         propagation_source.to_bytes(),
         propagation_source.to_string(),
     );

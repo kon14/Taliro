@@ -1,5 +1,4 @@
 use super::super::behavior::AppNetworkBehavior;
-use crate::ext::TryIntoDomainNetworkAddressExtInfrastructure;
 use common::{log_net_kad_debug, log_net_kad_error, log_net_kad_trace};
 use libp2p::multiaddr::Protocol;
 use libp2p::{Swarm, kad};
@@ -10,6 +9,7 @@ pub(super) fn handle_kademlia_event(
     swarm: &mut Swarm<AppNetworkBehavior>,
     network_repo: &Arc<dyn domain::repos::network::NetworkRepository>,
     termination_initiated: bool,
+    net_entity_validator: &Arc<dyn domain::system::network::validator::NetworkEntityValidator>,
 ) {
     log_net_kad_trace!("Kademlia event: {:?}", event);
 
@@ -36,18 +36,21 @@ pub(super) fn handle_kademlia_event(
                     full_addr
                 );
                 if is_new_peer {
-                    let net_addr = match full_addr.try_into_domain_network_address() {
+                    let net_addr = match net_entity_validator
+                        .validate_address(full_addr.to_string())
+                    {
                         Ok(addr) => addr,
                         Err(err) => {
                             log_net_kad_error!(
-                                "Failed to convert libp2p Multiaddr to NetworkAddress: {}",
-                                err
+                                "RoutingUpdated - Failed to validate peer address! | Error: {err}"
                             );
                             continue;
                         }
                     };
                     let Ok(_) = network_repo.insert_peer_address(net_addr) else {
-                        log_net_kad_error!("Failed to insert new peer address into repository.");
+                        log_net_kad_error!(
+                            "RoutingUpdated - Failed to insert new peer address into repository."
+                        );
                         continue;
                     };
                 }
@@ -59,11 +62,13 @@ pub(super) fn handle_kademlia_event(
                     .add_address(&peer, base_addr.clone());
 
                 let Ok(_) = swarm.dial(base_addr.clone()) else {
-                    log_net_kad_error!("Failed to dial new peer address.");
+                    log_net_kad_error!("RoutingUpdated - Failed to dial new peer address.");
                     continue;
                 };
                 let Ok(_) = swarm.behaviour_mut().get_kademlia_mut().bootstrap() else {
-                    log_net_kad_error!("Failed to bootstrap Kademlia after adding new peer.");
+                    log_net_kad_error!(
+                        "RoutingUpdated - Failed to bootstrap Kademlia after adding new peer."
+                    );
                     continue;
                 };
             }

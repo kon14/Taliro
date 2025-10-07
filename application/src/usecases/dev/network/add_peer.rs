@@ -1,6 +1,7 @@
 use common::error::AppError;
 use domain::system::network::event::AddPeerResponse;
 use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::types::network::NetworkAddress;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -22,11 +23,11 @@ impl AddNetworkPeerUseCase {
 
     pub async fn execute(
         &self,
-        network_address_str: String, // Multiaddr
+        network_address: NetworkAddress,
     ) -> Result<AddPeerResponse, AppError> {
         let (command, res_fut) = self
             .bus_tx_res_factory
-            .build_net_cmd_add_peer(network_address_str)?;
+            .build_net_cmd_add_peer(network_address);
         self.bus_tx.send(command).await?;
         let res = res_fut.await?;
         Ok(res)

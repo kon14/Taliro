@@ -8,12 +8,13 @@ use async_trait::async_trait;
 use common::config::network::NetworkConfig;
 use common::error::AppError;
 use common::{
-    log_net_debug, log_net_error, log_net_gs_debug, log_net_gs_error, log_net_info,
-    log_net_taliro_error, log_net_taliro_trace, log_net_trace, log_net_warn,
+    log_net_error, log_net_gs_debug, log_net_gs_error, log_net_info, log_net_taliro_error,
+    log_net_taliro_trace, log_net_trace, log_net_warn,
 };
 use domain::encode::TryEncode;
 use domain::repos::network::NetworkRepository;
 use domain::system::network::event::{AddPeerResponse, NetworkEvent};
+use domain::system::network::validator::NetworkEntityValidator;
 use domain::system::network::{P2PNetworkEngine, P2PNetworkHandle};
 use domain::system::node::bus::{CommandResponderFactory, CommandSender};
 use domain::types::network::{NetworkAddress, NetworkIdentityKeypair, NetworkPeerId};
@@ -36,6 +37,7 @@ pub struct Libp2pNetworkEngine {
     topic: IdentTopic,
     peer_store: Arc<NetworkPeerStore>,
     identity: NetworkIdentityKeypair,
+    net_entity_validator: Arc<dyn NetworkEntityValidator>,
     listener_id: ListenerId,
 }
 
@@ -45,11 +47,13 @@ impl Libp2pNetworkEngine {
     pub fn new(
         cfg: NetworkConfig,
         network_repo: Arc<dyn NetworkRepository>,
+        net_entity_validator: Arc<dyn NetworkEntityValidator>,
     ) -> Result<Self, AppError> {
         let topic = Topic::new(Self::TALIRO_TOPIC);
 
         let (key_pair, net_key_pair) = Self::get_identity(&cfg, network_repo.clone())?;
-        let (listen_addr, peer_id) = Self::get_listen_address(&cfg, &key_pair)?;
+        let (listen_addr, peer_id) =
+            Self::get_listen_address(&cfg, &key_pair, &net_entity_validator)?;
         let peer_store = NetworkPeerStore::new(peer_id);
 
         if listen_addr.has_ephemeral_port() {
@@ -87,6 +91,7 @@ impl Libp2pNetworkEngine {
             topic,
             peer_store: Arc::new(peer_store),
             identity: net_key_pair,
+            net_entity_validator,
             listener_id,
         };
         Ok(network)
@@ -172,10 +177,14 @@ impl Libp2pNetworkEngine {
             }
             NetworkEvent::AddPeer(address, responder) => {
                 log_net_info!("Handling AddPeer event for address: {:?}", address);
-                let Ok(addr) = address.clone().try_into_libp2p_addr() else {
-                    let res = AddPeerResponse::InvalidAddress(address);
-                    let _ = responder.send(res);
-                    return;
+                let libp2p_addr = match address.clone().try_into_libp2p_addr() {
+                    Ok(addr) => addr,
+                    Err(err) => {
+                        log_net_error!("{err}");
+                        let res = AddPeerResponse::InvalidAddress(address);
+                        let _ = responder.send(res);
+                        return;
+                    }
                 };
 
                 let already_connected = peer_store.is_address_known(&address).await;
@@ -185,9 +194,9 @@ impl Libp2pNetworkEngine {
                     return;
                 }
 
-                let res = Swarm::dial(swarm, addr.clone()).map_or_else(
+                let res = Swarm::dial(swarm, libp2p_addr.clone()).map_or_else(
                     |err| {
-                        log_net_error!("Failed to dial peer address {:?}: {}", addr, err);
+                        log_net_error!("Failed to dial peer address {:?}: {}", libp2p_addr, err);
                         AddPeerResponse::FailedToDialPeer
                     },
                     |_| AddPeerResponse::Pending,
@@ -204,6 +213,7 @@ impl Libp2pNetworkEngine {
         bus_tx_res_factory: &Arc<dyn CommandResponderFactory>,
         peer_store: &Arc<NetworkPeerStore>,
         active_listeners: &mut HashSet<ListenerId>,
+        net_entity_validator: &Arc<dyn NetworkEntityValidator>,
         termination_initiated: bool,
     ) {
         match swarm.select_next_some().await {
@@ -211,38 +221,47 @@ impl Libp2pNetworkEngine {
                 let full_address = address.clone().with(Protocol::P2p(*swarm.local_peer_id()));
                 log_net_info!("Listening on {full_address:?}");
 
-                let Ok(network_address) = full_address.clone().try_into_domain_network_address()
-                else {
-                    log_net_error!("Failed to parse self address from multiaddr: {full_address:?}");
-                    return;
-                };
-                peer_store.add_own_address(network_address).await;
+                match net_entity_validator.validate_address(full_address.to_string()) {
+                    Ok(addr) => {
+                        peer_store.add_own_address(addr).await;
+                    }
+                    Err(err) => {
+                        log_net_error!("Failed to validate own address! | Error: {err}");
+                    }
+                }
             }
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
                 log_net_info!("Connection established with {peer_id} at {endpoint:?}");
+
                 let mut multiaddr = endpoint.get_remote_address().clone();
+                // ConnectionEstablished event's Multiaddr should technically include a PeerId.
+                // Not enforced via the type system, so resetting it just to be sure...
                 multiaddr.set_peer_id(peer_id);
 
-                if let Ok(net_addr) = multiaddr.clone().try_into_domain_network_address() {
-                    let net_peer_id =
-                        NetworkPeerId::new_unchecked(peer_id.to_bytes(), peer_id.to_string());
-                    let is_new_connection = peer_store
-                        .add_peer_address(net_peer_id, net_addr.clone())
-                        .await;
-
-                    #[allow(clippy::collapsible_if)]
-                    if is_new_connection {
-                        if let Err(err) = network_repo.insert_peer_address(net_addr) {
-                            log_net_error!(
-                                "Failed to insert peer address into NetworkRepository! Error: {err}"
-                            );
-                        }
+                // Network Address Validation
+                let net_addr = match net_entity_validator.validate_address(multiaddr.to_string()) {
+                    Ok(addr) => addr,
+                    Err(err) => {
+                        log_net_error!("Failed to validate peer address! | Error: {err}");
+                        log_net_warn!("NetworkPeerStore out of sync!");
+                        return;
                     }
-                } else {
-                    log_net_error!("Failed to parse peer address from multiaddr: {multiaddr:?}");
-                    log_net_debug!("NetworkPeerStore out of sync!");
+                };
+
+                let net_peer_id = net_addr.get_peer_id();
+                let is_new_connection = peer_store
+                    .add_peer_address(net_peer_id, net_addr.clone())
+                    .await;
+
+                #[allow(clippy::collapsible_if)]
+                if is_new_connection {
+                    if let Err(err) = network_repo.insert_peer_address(net_addr) {
+                        log_net_error!(
+                            "Failed to insert peer address into NetworkRepository! | Error: {err}"
+                        );
+                    }
                 }
 
                 // TODO: move below logic to Domain
@@ -258,15 +277,21 @@ impl Libp2pNetworkEngine {
                 peer_id, endpoint, ..
             } => {
                 log_net_warn!("Connection dropped for {peer_id} at {endpoint:?}");
+
                 let mut multiaddr = endpoint.get_remote_address().clone();
+                // ConnectionClosed event's Multiaddr should technically include a PeerId.
+                // Not enforced via the type system, so resetting it just to be sure...
                 multiaddr.set_peer_id(peer_id);
-                if let Ok(net_addr) = multiaddr.clone().try_into_domain_network_address() {
-                    let net_peer_id =
-                        NetworkPeerId::new_unchecked(peer_id.to_bytes(), peer_id.to_string());
-                    peer_store.remove_peer_address(net_peer_id, &net_addr).await;
-                } else {
-                    log_net_error!("Failed to parse peer address from multiaddr: {multiaddr:?}");
-                    log_net_debug!("NetworkPeerStore out of sync!");
+
+                match net_entity_validator.validate_address(multiaddr.to_string()) {
+                    Ok(addr) => {
+                        let net_peer_id = addr.get_peer_id();
+                        peer_store.remove_peer_address(net_peer_id, &addr).await;
+                    }
+                    Err(err) => {
+                        log_net_error!("Failed to validate peer address! | Error: {err}");
+                        log_net_warn!("NetworkPeerStore out of sync!");
+                    }
                 }
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
@@ -284,6 +309,7 @@ impl Libp2pNetworkEngine {
                     bus_tx_res_factory,
                     network_repo,
                     termination_initiated,
+                    net_entity_validator,
                 )
                 .await
             }
@@ -324,14 +350,15 @@ impl Libp2pNetworkEngine {
     fn get_listen_address(
         cfg: &NetworkConfig,
         identity: &Keypair,
+        net_entity_validator: &Arc<dyn NetworkEntityValidator>,
     ) -> Result<(Multiaddr, NetworkPeerId), AppError> {
         let mut multiaddr = cfg
             .listen_address
             .parse::<Multiaddr>()
             .map_err(|err| AppError::internal(format!("Invalid multiaddr format: {}", err)))?;
         let peer_id = PeerId::from(identity.public());
+        let net_peer_id = net_entity_validator.validate_peer_id(peer_id.to_string())?;
         multiaddr.set_peer_id(peer_id);
-        let net_peer_id = NetworkPeerId::new_unchecked(peer_id.to_bytes(), peer_id.to_string());
         Ok((multiaddr, net_peer_id))
     }
 
@@ -340,14 +367,23 @@ impl Libp2pNetworkEngine {
             .config
             .init_peers
             .iter()
-            .map(|addr| NetworkAddress::try_from_str(addr)) // TODO: early validation (move into cfg)
-            .collect::<Result<HashSet<_>, AppError>>()?;
+            .map(|addr| self.net_entity_validator.validate_address(addr.clone()))
+            .collect::<Result<HashSet<_>, AppError>>();
+        let init_peer_addresses = match init_peer_addresses {
+            Ok(addrs) => addrs,
+            Err(err) => {
+                log_net_error!(
+                    "Failed to validate initial peer addresses from config! | Error: {err}"
+                );
+                return Err(err);
+            }
+        };
         let mut peer_addresses = self.network_repo.get_peer_addresses()?;
         peer_addresses.extend(init_peer_addresses);
         let own_peer_id = self.peer_store.get_own_peer_id();
         let peer_addresses = peer_addresses
             .into_iter()
-            .filter(|addr| addr.get_peer_id().as_ref() != Some(own_peer_id))
+            .filter(|addr| addr.get_peer_id() != *own_peer_id)
             .collect();
         Ok(peer_addresses)
     }
@@ -367,6 +403,7 @@ impl Libp2pNetworkEngine {
             let identity = self.identity;
             let mut active_listeners: HashSet<ListenerId> =
                 [self.listener_id].into_iter().collect();
+            let net_entity_validator = self.net_entity_validator;
             let mut termination_initiated = false;
             async move {
                 loop {
@@ -398,6 +435,7 @@ impl Libp2pNetworkEngine {
                             &bus_tx_res_factory,
                             &peer_store,
                             &mut active_listeners,
+                            &net_entity_validator,
                             termination_initiated,
                         ) => {},
                     }
@@ -424,7 +462,11 @@ impl P2PNetworkEngine for Libp2pNetworkEngine {
             .collect::<Result<Vec<_>, AppError>>()?;
         for addr in &peer_addresses {
             Swarm::dial(&mut self.swarm, addr.clone()).unwrap_or_else(|err| {
-                log_net_error!("Failed to dial initial peer address {:?}: {}", addr, err);
+                log_net_error!(
+                    "Failed to dial initial peer address {:?}! | Error: {}",
+                    addr,
+                    err
+                );
             });
         }
 

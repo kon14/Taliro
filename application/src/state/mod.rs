@@ -1,12 +1,15 @@
 use crate::auth::master_key::MasterKeyAuthenticator;
 use crate::usecases::dev;
+use domain::system::network::validator::NetworkEntityValidator;
 use domain::system::node::bus::{CommandResponderFactory, CommandSender};
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
+    // Validation
+    pub net_entity_validator: Arc<dyn NetworkEntityValidator>,
     // Authentication
-    pub master_key_authenticator: Arc<dyn MasterKeyAuthenticator + Send + Sync>,
+    pub master_key_authenticator: Arc<dyn MasterKeyAuthenticator>,
     // Development Use Cases
     pub generate_wallet_use_case: dev::GenerateWalletUseCase,
     pub init_genesis_use_case: dev::InitiateGenesisUseCase,
@@ -29,7 +32,8 @@ impl AppState {
     pub fn new(
         bus_tx: Arc<dyn CommandSender>,
         bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
-        master_key_authenticator: Arc<dyn MasterKeyAuthenticator + Send + Sync>,
+        master_key_authenticator: Arc<dyn MasterKeyAuthenticator>,
+        net_entity_validator: Arc<dyn NetworkEntityValidator>,
     ) -> Self {
         let generate_wallet_use_case = dev::GenerateWalletUseCase::new();
         let init_genesis_use_case =
@@ -75,6 +79,8 @@ impl AppState {
         );
 
         Self {
+            // Validation
+            net_entity_validator,
             // Authentication
             master_key_authenticator,
             // Development Use Cases

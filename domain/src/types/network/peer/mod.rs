@@ -6,7 +6,7 @@ use std::fmt;
 pub struct NetworkPeerId(Vec<u8>, String);
 
 impl NetworkPeerId {
-    pub fn new_unchecked(bytes: Vec<u8>, str_repr: String) -> Self {
+    pub fn _new_validated(bytes: Vec<u8>, str_repr: String) -> Self {
         Self(bytes, str_repr)
     }
 

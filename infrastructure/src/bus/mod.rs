@@ -1,4 +1,3 @@
-use crate::ext::TryFromStrDomainNetworkAddressExtInfrastructure;
 use async_trait::async_trait;
 use common::error::AppError;
 use common::params::PaginationParams;
@@ -377,16 +376,11 @@ impl CommandResponderFactory for NodeCommandResponderFactory {
 
     fn build_net_cmd_add_peer(
         &self,
-        multiaddr_str: String,
-    ) -> Result<
-        (
-            NodeCommandRequest,
-            Pin<Box<dyn Future<Output = Result<AddPeerResponse, AppError>> + Send>>,
-        ),
-        AppError,
-    > {
-        let network_address = NetworkAddress::try_from_str(&multiaddr_str)?;
-
+        network_address: NetworkAddress,
+    ) -> (
+        NodeCommandRequest,
+        Pin<Box<dyn Future<Output = Result<AddPeerResponse, AppError>> + Send>>,
+    ) {
         let (tx, rx) = oneshot::channel();
         let responder = Box::new(TokioResponder(tx))
             as Box<dyn CommandResponder<Result<AddPeerResponse, AppError>> + Send>;
@@ -397,7 +391,7 @@ impl CommandResponderFactory for NodeCommandResponderFactory {
                 .expect("Responder dropped without sending response!") // TODO: handle error properly
         });
 
-        Ok((command, fut))
+        (command, fut)
     }
 
     fn build_p2p_cmd_receive_blockchain_tip_info(

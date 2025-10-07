@@ -4,3 +4,4 @@ mod event;
 pub mod handle;
 pub(crate) mod protocol;
 pub(crate) mod store;
+pub mod validator;

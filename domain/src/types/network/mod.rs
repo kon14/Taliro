@@ -14,15 +14,15 @@ use common::error::AppError;
 #[derive(Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct NetworkAddress {
     address_bytes: Vec<u8>,
-    address_str: String, // includes peer_id suffix
-    peer_id: Option<NetworkPeerId>,
+    address_str: String, // includes P2P peer id
+    peer_id: NetworkPeerId,
 }
 
 impl NetworkAddress {
-    pub fn new_unchecked(
+    pub fn _new_validated(
         address_bytes: Vec<u8>,
         address_str_repr: String,
-        peer_id: Option<NetworkPeerId>,
+        peer_id: NetworkPeerId,
     ) -> Self {
         Self {
             address_bytes,
@@ -39,7 +39,7 @@ impl NetworkAddress {
         self.address_str.clone()
     }
 
-    pub fn get_peer_id(&self) -> Option<NetworkPeerId> {
+    pub fn get_peer_id(&self) -> NetworkPeerId {
         self.peer_id.clone()
     }
 }

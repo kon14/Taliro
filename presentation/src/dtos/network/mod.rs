@@ -7,16 +7,14 @@ use utoipa::ToSchema;
 #[schema(title = "NetworkAddress")]
 pub(crate) struct NetworkAddressPresentationDto {
     address: String,
-    peer_id: Option<String>,
+    peer_id: String,
 }
 
 impl From<NetworkAddress> for NetworkAddressPresentationDto {
     fn from(addr: NetworkAddress) -> Self {
         Self {
             address: addr.get_address_str(),
-            peer_id: addr
-                .get_peer_id()
-                .map(|peer_id| peer_id.as_str().to_string()),
+            peer_id: addr.get_peer_id().as_str().to_string(),
         }
     }
 }
