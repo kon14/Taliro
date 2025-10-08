@@ -1,3 +1,5 @@
+pub mod handlers;
+
 use crate::entities::block::{Block, BlockHeight, BlockTemplate, NonValidatedBlock};
 use crate::entities::transaction::{
     NonValidatedTransaction, Transaction, TransactionOutPoint, Utxo,
@@ -11,141 +13,169 @@ use common::error::AppError;
 use common::params::PaginationParams;
 use derivative::Derivative;
 use std::fmt::Debug;
+use std::future::Future;
 use std::ops::RangeInclusive;
 use std::pin::Pin;
 
+// ============================================================================
+// Domain-Specific Command Enums
+// ============================================================================
+
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub enum NodeCommandRequest {
+pub enum BlockchainCommand {
     /// Dev-administered command to initiate genesis process.
-    BlockchainInitiateGenesis(
+    InitiateGenesis(
         GenesisConfig,
         #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<(), AppError>> + Send>,
     ),
-
     /// Handles mining a new block.
-    BlockchainHandleMineBlock(
+    HandleMineBlock(
         BlockTemplate,
         #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<Block, AppError>> + Send>,
     ),
-
-    /// Network-triggered command used to synchronize the blockchain.<br />
-    /// Handles receiving blockchain tip info from a peer.
-    P2PHandleReceiveBlockchainTipInfo(
-        NetworkPeerId,
-        Option<(Hash, BlockHeight)>,
-        #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<(), AppError>> + Send>,
-    ),
-
-    /// Network-triggered command used to synchronize the blockchain.<br />
-    /// Handles receiving blocks from a peer.
-    P2PHandleReceiveBlocks(
-        NetworkPeerId,
-        Vec<NonValidatedBlock>,
-        #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<(), AppError>> + Send>,
-    ),
-
     /// Post-blockchain insertion command to handle updating subsystems and incrementing active height.
-    BlockchainHandleBlockAppend(
+    HandleBlockAppend(
         Block,
         #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<(), AppError>> + Send>,
     ),
-
     /// Dev-administered command to retrieve blockchain tip information.
-    BlockchainGetTipInfo(
+    GetTipInfo(
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Option<(Hash, BlockHeight)>, AppError>> + Send>,
     ),
-
     /// Dev-administered command to retrieve blockchain block.
-    BlockchainGetBlock(
+    GetBlock(
         Hash,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Option<Block>, AppError>> + Send>,
     ),
-
     /// Dev-administered command to retrieve blockchain block by height.
-    BlockchainGetBlockByHeight(
+    GetBlockByHeight(
         BlockHeight,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Option<Block>, AppError>> + Send>,
     ),
-
-    /// Dev-administered command to retrieve blockchain blocks by height range (inclusive start, inclusive end).
-    BlockchainGetBlocksByHeightRange(
+    /// Dev-administered command to retrieve blockchain blocks by height range (inclusive).
+    GetBlocksByHeightRange(
         RangeInclusive<BlockHeight>,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Vec<Block>, AppError>> + Send>,
     ),
+}
 
-    /// Dev-administered command to place a mempool transaction into the mempool.
-    MempoolPlaceTransaction(
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum MempoolCommand {
+    /// Dev-administered command to place a transaction into the mempool.
+    PlaceTransaction(
         NonValidatedTransaction,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Transaction, AppError>> + Send>,
     ),
-
-    /// Dev-administered command to retrieve mempool transactions.<br />
-    /// Accepts pagination parameters.<br />
-    /// Returns the paginated transactions along with the total count of transactions in the mempool.
-    MempoolGetPaginatedTransactions(
+    /// Dev-administered command to retrieve mempool transactions with pagination.<br />
+    /// Returns the paginated transactions along with the total transaction count.
+    GetPaginatedTransactions(
         PaginationParams,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<(Vec<Transaction>, usize), AppError>> + Send>,
     ),
-
     /// Dev-administered command to retrieve mempool transactions by their hashes.
-    MempoolGetTransactionsByHashes(
+    GetTransactionsByHashes(
         Vec<Hash>,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Vec<Transaction>, AppError>> + Send>,
     ),
+}
 
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum UtxoCommand {
     /// Dev-administered command to retrieve UTXOs by their outpoints.
-    BlockchainGetUtxosByOutpoints(
+    GetUtxosByOutpoints(
         Vec<TransactionOutPoint>,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Vec<Utxo>, AppError>> + Send>,
     ),
-
-    /// Dev-administered command to retrieve UTXOs.
-    BlockchainGetUtxos(
+    /// Dev-administered command to retrieve all UTXOs.
+    GetUtxos(
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Vec<Utxo>, AppError>> + Send>,
     ),
+}
 
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum NetworkCommand {
     /// Dev-administered command to retrieve this node's network information.
-    NetworkGetSelfInfo(
+    GetSelfInfo(
         #[derivative(Debug = "ignore")]
         Box<
             dyn CommandResponder<Result<(NetworkIdentityKeypair, Vec<NetworkAddress>), AppError>>
                 + Send,
         >,
     ),
-
     /// Dev-administered command to retrieve this network's connected peers.
-    NetworkGetPeers(
+    GetPeers(
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<Vec<NetworkAddress>, AppError>> + Send>,
     ),
-
     /// Dev-administered command to connect the network to a new peer.
-    NetworkAddPeer(
+    AddPeer(
         NetworkAddress,
         #[derivative(Debug = "ignore")]
         Box<dyn CommandResponder<Result<AddPeerResponse, AppError>> + Send>,
     ),
+}
 
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum P2PCommand {
+    /// Handles receiving blockchain tip info from a peer.
+    HandleReceiveBlockchainTipInfo(
+        NetworkPeerId,
+        Option<(Hash, BlockHeight)>,
+        #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<(), AppError>> + Send>,
+    ),
+    /// Handles receiving blocks from a peer.
+    HandleReceiveBlocks(
+        NetworkPeerId,
+        Vec<NonValidatedBlock>,
+        #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<(), AppError>> + Send>,
+    ),
     /// Forwards a network event to the appropriate subsystem handler.<br />
     /// Used to decouple subsystems dependent on network event publishing from `P2PNetworkHandle`.
     ProxyForwardNetworkEvent(
         NetworkEvent,
         #[derivative(Debug = "ignore")] Box<dyn CommandResponder<Result<(), AppError>> + Send>,
     ),
+}
 
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum SystemCommand {
     /// Internal command to initiate graceful node termination.
     RequestNodeShutdown,
 }
+
+// ============================================================================
+// Top-Level Command Enum
+// ============================================================================
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum NodeCommandRequest {
+    Blockchain(BlockchainCommand),
+    Mempool(MempoolCommand),
+    Utxo(UtxoCommand),
+    Network(NetworkCommand),
+    P2P(P2PCommand),
+    System(SystemCommand),
+}
+
+// ============================================================================
+// Traits
+// ============================================================================
 
 #[async_trait]
 pub trait CommandSender: Send + Sync + Debug {
@@ -161,9 +191,14 @@ pub trait CommandResponder<T>: Send + Debug {
     fn respond(self: Box<Self>, value: T);
 }
 
-/// A factory for building bus command requests along with their associated response futures.<br />
+// ============================================================================
+// Command Factory Traits
+// ============================================================================
+
+/// A factory for building cmd command requests along with their associated response futures.<br />
 /// Published events are consumed in [`crate::system::node::state::run::NodeRunning`].
 pub trait CommandResponderFactory: Send + Sync + Debug {
+    // Blockchain commands
     fn build_blk_cmd_init_genesis(
         &self,
         cfg: GenesisConfig,
@@ -219,6 +254,7 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<Vec<Block>, AppError>> + Send>>,
     );
 
+    // Mempool commands
     fn build_mp_cmd_place_transaction(
         &self,
         tx: NonValidatedTransaction,
@@ -243,7 +279,8 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<Vec<Transaction>, AppError>> + Send>>,
     );
 
-    fn build_blk_get_utxos_by_outpoints(
+    // UTXO commands
+    fn build_utxo_get_utxos_by_outpoints(
         &self,
         outpoints: Vec<TransactionOutPoint>,
     ) -> (
@@ -251,13 +288,14 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<Vec<Utxo>, AppError>> + Send>>,
     );
 
-    fn build_cmd_get_utxos(
+    fn build_utxo_cmd_get_utxos(
         &self,
     ) -> (
         NodeCommandRequest,
         Pin<Box<dyn Future<Output = Result<Vec<Utxo>, AppError>> + Send>>,
     );
 
+    // Network commands
     fn build_net_cmd_get_self_info(
         &self,
     ) -> (
@@ -285,7 +323,7 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<AddPeerResponse, AppError>> + Send>>,
     );
 
-    // TODO: add peer info
+    // P2P protocol commands
     fn build_p2p_cmd_receive_blockchain_tip_info(
         &self,
         origin_peer_id: NetworkPeerId,
@@ -295,7 +333,6 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<(), AppError>> + Send>>,
     );
 
-    // TODO: add peer info
     fn build_p2p_cmd_receive_blocks(
         &self,
         origin_peer_id: NetworkPeerId,
@@ -305,7 +342,6 @@ pub trait CommandResponderFactory: Send + Sync + Debug {
         Pin<Box<dyn Future<Output = Result<(), AppError>> + Send>>,
     );
 
-    // TODO: add peer info
     fn build_proxy_cmd_forward_network_event(
         &self,
         event: NetworkEvent,

@@ -1,5 +1,5 @@
 pub mod auth;
-pub mod bus;
+pub mod cmd;
 pub(crate) mod ext;
 pub mod network;
 pub mod repos;

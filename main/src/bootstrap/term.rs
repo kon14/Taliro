@@ -1,5 +1,5 @@
 use common::log_app_info;
-use domain::system::node::bus::{CommandSender, NodeCommandRequest};
+use domain::system::node::cmd::{CommandSender, NodeCommandRequest, SystemCommand};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -7,7 +7,7 @@ use tokio::sync::broadcast;
 use tokio::signal::unix::{signal as unix_signal, SignalKind};
 
 pub(crate) fn handle_termination_signals(
-    bus_tx: Arc<dyn CommandSender>,
+    cmd_tx: Arc<dyn CommandSender>,
 ) -> (broadcast::Sender<()>, broadcast::Receiver<()>) {
     let (shutdown_tx, shutdown_rx) = broadcast::channel::<()>(16);
 
@@ -31,7 +31,11 @@ pub(crate) fn handle_termination_signals(
             }
         }
 
-        let _ = bus_tx.send(NodeCommandRequest::RequestNodeShutdown).await;
+        let _ = cmd_tx
+            .send(NodeCommandRequest::System(
+                SystemCommand::RequestNodeShutdown,
+            ))
+            .await;
     });
 
     (shutdown_tx, shutdown_rx)

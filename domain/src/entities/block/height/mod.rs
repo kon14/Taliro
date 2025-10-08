@@ -35,3 +35,9 @@ impl fmt::Debug for BlockHeight {
         write!(f, "BlockHeight({})", self.0)
     }
 }
+
+impl fmt::Display for BlockHeight {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

@@ -5,7 +5,7 @@ use domain::{
     encode::TryDecode,
     system::{
         network::event::GossipsubNetworkEvent,
-        node::bus::{CommandResponderFactory, CommandSender},
+        node::cmd::{CommandResponderFactory, CommandSender},
     },
 };
 use libp2p::{Swarm, gossipsub};
@@ -14,13 +14,13 @@ use std::sync::Arc;
 pub(super) async fn handle_gossipsub_event(
     event: gossipsub::Event,
     swarm: &mut Swarm<AppNetworkBehavior>,
-    bus_tx: &Arc<dyn CommandSender>,
-    bus_tx_res_factory: &Arc<dyn CommandResponderFactory>,
+    cmd_tx: &Arc<dyn CommandSender>,
+    cmd_tx_res_factory: &Arc<dyn CommandResponderFactory>,
 ) {
     #[allow(clippy::single_match)]
     match event {
         gossipsub::Event::Message { .. } => {
-            handle_gossipsub_message_event(event, swarm, bus_tx, bus_tx_res_factory).await
+            handle_gossipsub_message_event(event, swarm, cmd_tx, cmd_tx_res_factory).await
         }
         _ => {}
     }
@@ -29,8 +29,8 @@ pub(super) async fn handle_gossipsub_event(
 async fn handle_gossipsub_message_event(
     event: gossipsub::Event,
     swarm: &mut Swarm<AppNetworkBehavior>,
-    bus_tx: &Arc<dyn CommandSender>,
-    bus_tx_res_factory: &Arc<dyn CommandResponderFactory>,
+    cmd_tx: &Arc<dyn CommandSender>,
+    cmd_tx_res_factory: &Arc<dyn CommandResponderFactory>,
 ) {
     let gossipsub::Event::Message {
         message,
@@ -71,8 +71,8 @@ async fn handle_gossipsub_message_event(
         GossipsubNetworkEvent::BroadcastNewBlock(block) => {
             let block = block.invalidate();
             let (command, res_fut) =
-                bus_tx_res_factory.build_p2p_cmd_receive_blocks(peer_id, vec![block]);
-            let Ok(_) = bus_tx.send(command).await else {
+                cmd_tx_res_factory.build_p2p_cmd_receive_blocks(peer_id, vec![block]);
+            let Ok(_) = cmd_tx.send(command).await else {
                 log_net_gs_error!("Failed to send HandleNetworkBroadcastNewBlock command.");
                 return;
             };

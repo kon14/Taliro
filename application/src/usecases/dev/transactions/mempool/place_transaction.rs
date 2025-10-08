@@ -3,7 +3,7 @@ use domain::entities::transaction::{
     NonValidatedTransaction, Transaction, TransactionAmount, TransactionInput, TransactionOutPoint,
     TransactionOutput, Utxo,
 };
-use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::system::node::cmd::{CommandResponderFactory, CommandSender};
 use domain::types::sign::PrivateKey;
 use domain::types::time::DateTime;
 use domain::types::wallet::WalletAddress;
@@ -11,18 +11,18 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct PlaceMempoolTransactionUseCase {
-    bus_tx: Arc<dyn CommandSender>,
-    bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+    cmd_tx: Arc<dyn CommandSender>,
+    cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
 }
 
 impl PlaceMempoolTransactionUseCase {
     pub fn new(
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
     ) -> Self {
         Self {
-            bus_tx,
-            bus_tx_res_factory,
+            cmd_tx,
+            cmd_tx_res_factory,
         }
     }
 
@@ -50,8 +50,8 @@ impl PlaceMempoolTransactionUseCase {
         // Build transaction (pre-validation)
         let tx = NonValidatedTransaction::new(inputs, outputs, DateTime::now())?;
 
-        let (command, res_fut) = self.bus_tx_res_factory.build_mp_cmd_place_transaction(tx);
-        self.bus_tx.send(command).await?;
+        let (command, res_fut) = self.cmd_tx_res_factory.build_mp_cmd_place_transaction(tx);
+        self.cmd_tx.send(command).await?;
         let transaction = res_fut.await?;
         let res = PlaceMempoolTransactionUseCaseResponse { transaction };
         Ok(res)
@@ -61,9 +61,9 @@ impl PlaceMempoolTransactionUseCase {
         let expected_len = outpoints.len();
 
         let (command, res_fut) = self
-            .bus_tx_res_factory
-            .build_blk_get_utxos_by_outpoints(outpoints);
-        self.bus_tx.send(command).await?;
+            .cmd_tx_res_factory
+            .build_utxo_get_utxos_by_outpoints(outpoints);
+        self.cmd_tx.send(command).await?;
         let utxos = res_fut.await?;
 
         if utxos.len() != expected_len {

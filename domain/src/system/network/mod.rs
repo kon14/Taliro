@@ -1,7 +1,7 @@
 pub mod event;
 pub mod validator;
 
-use crate::system::node::bus::{CommandResponderFactory, CommandSender};
+use crate::system::node::cmd::{CommandResponderFactory, CommandSender};
 use async_trait::async_trait;
 use common::error::AppError;
 use event::NetworkEvent;
@@ -12,8 +12,8 @@ use std::sync::Arc;
 pub trait P2PNetworkEngine: Debug {
     async fn connect(
         mut self: Box<Self>,
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
         shutdown_rx: tokio::sync::broadcast::Receiver<()>,
     ) -> Result<Arc<dyn P2PNetworkHandle>, AppError>;
 }

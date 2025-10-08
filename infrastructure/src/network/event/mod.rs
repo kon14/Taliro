@@ -4,7 +4,7 @@ mod taliro;
 
 use super::protocol::{TaliroProtocolRequest, TaliroProtocolResponse};
 use crate::network::behavior::AppNetworkBehavior;
-use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::system::node::cmd::{CommandResponderFactory, CommandSender};
 use gossipsub::handle_gossipsub_event;
 use kademlia::handle_kademlia_event;
 use std::sync::Arc;
@@ -43,15 +43,15 @@ impl AppNetworkEvent {
     pub(super) async fn handle_behavior_event(
         event: Self,
         swarm: &mut libp2p::Swarm<AppNetworkBehavior>,
-        bus_tx: &Arc<dyn CommandSender>,
-        bus_tx_res_factory: &Arc<dyn CommandResponderFactory>,
+        cmd_tx: &Arc<dyn CommandSender>,
+        cmd_tx_res_factory: &Arc<dyn CommandResponderFactory>,
         network_repo: &Arc<dyn domain::repos::network::NetworkRepository>,
         termination_initiated: bool,
         net_entity_validator: &Arc<dyn domain::system::network::validator::NetworkEntityValidator>,
     ) {
         match event {
             AppNetworkEvent::Gossipsub(event) => {
-                handle_gossipsub_event(event, swarm, bus_tx, bus_tx_res_factory).await;
+                handle_gossipsub_event(event, swarm, cmd_tx, cmd_tx_res_factory).await;
             }
             AppNetworkEvent::Kademlia(event) => {
                 handle_kademlia_event(
@@ -63,7 +63,7 @@ impl AppNetworkEvent {
                 );
             }
             AppNetworkEvent::Taliro(event) => {
-                handle_taliro_event(event, swarm, bus_tx, bus_tx_res_factory).await;
+                handle_taliro_event(event, swarm, cmd_tx, cmd_tx_res_factory).await;
             }
         }
     }

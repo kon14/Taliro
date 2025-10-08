@@ -1,27 +1,27 @@
 use common::error::AppError;
 use common::{log_app_error, log_app_trace};
 use domain::repos::outbox::OutboxRepository;
-use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::system::node::cmd::{CommandResponderFactory, CommandSender};
 use domain::types::outbox::{OutboxEntry, OutboxEvent};
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct OutboxRelay {
     outbox_repo: Arc<dyn OutboxRepository>,
-    bus_tx: Arc<dyn CommandSender>,
-    bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+    cmd_tx: Arc<dyn CommandSender>,
+    cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
 }
 
 impl OutboxRelay {
     pub fn new(
         outbox_repo: Arc<dyn OutboxRepository>,
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
     ) -> Self {
         Self {
             outbox_repo,
-            bus_tx,
-            bus_tx_res_factory,
+            cmd_tx,
+            cmd_tx_res_factory,
         }
     }
 
@@ -54,9 +54,9 @@ impl OutboxRelay {
         match entry.get_event().clone() {
             OutboxEvent::BlockchainAppendBlock(block) => {
                 let (command, res_fut) = self
-                    .bus_tx_res_factory
+                    .cmd_tx_res_factory
                     .build_blk_cmd_handle_block_append(block);
-                self.bus_tx.send(command).await?;
+                self.cmd_tx.send(command).await?;
                 res_fut.await
             }
         }

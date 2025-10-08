@@ -6,7 +6,7 @@ use application::storage::Storage;
 use common::config;
 use common::config::AppConfig;
 use common::error::AppError;
-use infrastructure::bus::NodeCommandResponderFactory;
+use infrastructure::cmd::NodeCommandResponderFactory;
 use infrastructure::network::validator::Libp2pNetworkEntityValidator;
 use infrastructure::storage::SledStorage;
 use presentation::utils::BuildHttpServerResponse;
@@ -32,11 +32,11 @@ async fn main() -> Result<(), AppError> {
     let network_repo = storage.get_network_repo();
 
     // Bring up Event Channel
-    let (bus_tx, bus_rx) = bootstrap::bus::build_cmd_bus();
-    let bus_tx_res_factory = Arc::new(NodeCommandResponderFactory);
+    let (cmd_tx, cmd_rx) = bootstrap::cmd::build_cmd_channel();
+    let cmd_tx_res_factory = Arc::new(NodeCommandResponderFactory);
 
     // Handle Termination Signals
-    let (shutdown_tx, shutdown_rx) = bootstrap::term::handle_termination_signals(bus_tx.clone());
+    let (shutdown_tx, shutdown_rx) = bootstrap::term::handle_termination_signals(cmd_tx.clone());
 
     // Prepare the P2P Network
     let net_entity_validator = Arc::new(Libp2pNetworkEntityValidator);
@@ -51,14 +51,14 @@ async fn main() -> Result<(), AppError> {
         node_config,
         storage,
         network,
-        bus_tx.clone(),
-        bus_tx_res_factory.clone(),
+        cmd_tx.clone(),
+        cmd_tx_res_factory.clone(),
     )
     .await?;
     let node = node
         .bootstrap(
-            bus_tx.clone(),
-            bus_tx_res_factory.clone(),
+            cmd_tx.clone(),
+            cmd_tx_res_factory.clone(),
             block_sync_queue,
             block_proc_queue,
             shutdown_rx.resubscribe(),
@@ -69,13 +69,13 @@ async fn main() -> Result<(), AppError> {
     // Start Outbox Relay
     bootstrap::outbox::spawn_outbox_relay_worker_task(outbox_relay, shutdown_rx.resubscribe());
 
-    let node_run_fut = node.run(bus_rx, shutdown_tx, shutdown_rx.resubscribe());
+    let node_run_fut = node.run(cmd_rx, shutdown_tx, shutdown_rx.resubscribe());
 
     // Prepare the HTTP Server
     let app_state = bootstrap::http::build_http_app_state(
         http_config.clone(),
-        bus_tx,
-        bus_tx_res_factory,
+        cmd_tx,
+        cmd_tx_res_factory,
         net_entity_validator,
     )
     .await?;

@@ -1,4 +1,4 @@
-pub mod bus;
+pub mod cmd;
 mod state;
 
 pub use state::*;

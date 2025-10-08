@@ -1,7 +1,7 @@
 use crate::system::blockchain::Blockchain;
 use crate::system::mempool::Mempool;
 use crate::system::network::P2PNetworkHandle;
-use crate::system::node::bus::{CommandResponderFactory, CommandSender};
+use crate::system::node::cmd::{CommandResponderFactory, CommandSender};
 use crate::system::node::state::init::NodeInitialized;
 use crate::system::node::state::start::NodeStarted;
 use crate::system::queue::{BlockProcessingQueue, BlockSyncQueue};
@@ -29,8 +29,8 @@ pub struct NodeBootstrapped {
 impl NodeBootstrapped {
     pub(super) async fn bootstrap(
         node: NodeInitialized,
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
         block_sync_queue: Arc<dyn BlockSyncQueue>,
         block_proc_queue: Arc<dyn BlockProcessingQueue>,
         shutdown_rx: tokio::sync::broadcast::Receiver<()>,
@@ -40,7 +40,7 @@ impl NodeBootstrapped {
         // Connect to P2P network
         let network = node
             .network
-            .connect(bus_tx, bus_tx_res_factory, shutdown_rx)
+            .connect(cmd_tx, cmd_tx_res_factory, shutdown_rx)
             .await?;
 
         let node = Self {

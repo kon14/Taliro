@@ -3,7 +3,7 @@ use common::error::AppError;
 use common::log_app_debug;
 use domain::entities::block::{BlockHeight, NonValidatedBlock};
 use domain::system::network::event::{NetworkEvent, TaliroNetworkData, TaliroNetworkEvent};
-use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::system::node::cmd::{CommandResponderFactory, CommandSender};
 use domain::system::queue::{BlockProcessingQueue, BlockSyncQueue};
 use domain::types::network::NetworkPeerId;
 use std::collections::HashSet;
@@ -15,22 +15,22 @@ pub struct DefaultBlockSyncQueue {
     in_progress: Mutex<HashSet<BlockHeight>>,
     completed: Mutex<HashSet<BlockHeight>>,
     block_proc_queue: Arc<dyn BlockProcessingQueue>,
-    bus_tx: Arc<dyn CommandSender>,
-    bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+    cmd_tx: Arc<dyn CommandSender>,
+    cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
 }
 
 impl DefaultBlockSyncQueue {
     pub fn new(
         block_proc_queue: Arc<dyn BlockProcessingQueue>,
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
     ) -> Self {
         Self {
             in_progress: Mutex::new(HashSet::new()),
             completed: Mutex::new(HashSet::new()),
             block_proc_queue,
-            bus_tx,
-            bus_tx_res_factory,
+            cmd_tx,
+            cmd_tx_res_factory,
         }
     }
 
@@ -42,9 +42,9 @@ impl DefaultBlockSyncQueue {
         let event_data = TaliroNetworkData::GetBlockByHeight(height.clone());
         let event = NetworkEvent::Taliro(TaliroNetworkEvent::new(from_peer.clone(), event_data));
         let (command, _) = self
-            .bus_tx_res_factory
+            .cmd_tx_res_factory
             .build_proxy_cmd_forward_network_event(event);
-        self.bus_tx.send(command).await?;
+        self.cmd_tx.send(command).await?;
         Ok(())
     }
 }

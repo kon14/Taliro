@@ -6,7 +6,7 @@ use common::error::AppError;
 use domain::entities::block::BlockHeight;
 use domain::system::network::P2PNetworkEngine;
 use domain::system::node;
-use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::system::node::cmd::{CommandResponderFactory, CommandSender};
 use domain::system::queue::{BlockProcessingQueue, BlockSyncQueue};
 use std::sync::Arc;
 
@@ -14,8 +14,8 @@ pub(crate) async fn build_node(
     config: NodeConfig,
     storage: Box<dyn Storage>,
     network: Box<dyn P2PNetworkEngine>,
-    bus_tx: Arc<dyn CommandSender>,
-    bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+    cmd_tx: Arc<dyn CommandSender>,
+    cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
 ) -> Result<
     (
         node::NodeInitialized,
@@ -33,8 +33,8 @@ pub(crate) async fn build_node(
     // Build Outbox Relay
     let outbox_relay = OutboxRelay::new(
         outbox_repo.clone(),
-        bus_tx.clone(),
-        bus_tx_res_factory.clone(),
+        cmd_tx.clone(),
+        cmd_tx_res_factory.clone(),
     );
 
     // Build Blockchain Node
@@ -46,8 +46,8 @@ pub(crate) async fn build_node(
     let block_proc_queue = Arc::new(DefaultBlockProcessingQueue::new(next_expected_height));
     let block_sync_queue = Arc::new(DefaultBlockSyncQueue::new(
         block_proc_queue.clone(),
-        bus_tx.clone(),
-        bus_tx_res_factory.clone(),
+        cmd_tx.clone(),
+        cmd_tx_res_factory.clone(),
     ));
 
     Ok((node, outbox_relay, block_sync_queue, block_proc_queue))

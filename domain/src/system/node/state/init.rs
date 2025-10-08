@@ -5,7 +5,7 @@ use crate::repos::utxo::UtxoRepository;
 use crate::system::blockchain::{Blockchain, DefaultBlockchain};
 use crate::system::mempool::{DefaultMempool, Mempool};
 use crate::system::network::P2PNetworkEngine;
-use crate::system::node::bus::{CommandResponderFactory, CommandSender};
+use crate::system::node::cmd::{CommandResponderFactory, CommandSender};
 use crate::system::node::state::boot::NodeBootstrapped;
 use crate::system::queue::{BlockProcessingQueue, BlockSyncQueue};
 use crate::system::utxo::{UtxoReaderService, UtxoSetReader, UtxoSetWriter, UtxoSetWriterService};
@@ -68,16 +68,16 @@ impl NodeInitialized {
 
     pub async fn bootstrap(
         self,
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
         block_sync_queue: Arc<dyn BlockSyncQueue>,
         block_proc_queue: Arc<dyn BlockProcessingQueue>,
         shutdown_rx: tokio::sync::broadcast::Receiver<()>,
     ) -> Result<NodeBootstrapped, AppError> {
         NodeBootstrapped::bootstrap(
             self,
-            bus_tx,
-            bus_tx_res_factory,
+            cmd_tx,
+            cmd_tx_res_factory,
             block_sync_queue,
             block_proc_queue,
             shutdown_rx,

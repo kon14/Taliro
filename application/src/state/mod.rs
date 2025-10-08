@@ -1,7 +1,7 @@
 use crate::auth::master_key::MasterKeyAuthenticator;
 use crate::usecases::dev;
 use domain::system::network::validator::NetworkEntityValidator;
-use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::system::node::cmd::{CommandResponderFactory, CommandSender};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -30,52 +30,52 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
         master_key_authenticator: Arc<dyn MasterKeyAuthenticator>,
         net_entity_validator: Arc<dyn NetworkEntityValidator>,
     ) -> Self {
         let generate_wallet_use_case = dev::GenerateWalletUseCase::new();
         let init_genesis_use_case =
-            dev::InitiateGenesisUseCase::new(bus_tx.clone(), bus_tx_res_factory.clone());
+            dev::InitiateGenesisUseCase::new(cmd_tx.clone(), cmd_tx_res_factory.clone());
         let get_blockchain_tip_info_use_case = dev::blockchain::GetBlockchainTipInfoUseCase::new(
-            bus_tx.clone(),
-            bus_tx_res_factory.clone(),
+            cmd_tx.clone(),
+            cmd_tx_res_factory.clone(),
         );
         let get_blockchain_block_use_case = dev::blockchain::blocks::GetBlockchainBlockUseCase::new(
-            bus_tx.clone(),
-            bus_tx_res_factory.clone(),
+            cmd_tx.clone(),
+            cmd_tx_res_factory.clone(),
         );
         let get_blockchain_blocks_by_height_range_use_case =
             dev::blockchain::blocks::GetBlockchainBlocksByHeightRangeUseCase::new(
-                bus_tx.clone(),
-                bus_tx_res_factory.clone(),
+                cmd_tx.clone(),
+                cmd_tx_res_factory.clone(),
             );
         let adhoc_mine_block_use_case = dev::blockchain::blocks::AdHocMineBlockUseCase::new(
-            bus_tx.clone(),
-            bus_tx_res_factory.clone(),
+            cmd_tx.clone(),
+            cmd_tx_res_factory.clone(),
         );
         let get_network_self_info_use_case = dev::network::GetNetworkSelfInfoUseCase::new(
-            bus_tx.clone(),
-            bus_tx_res_factory.clone(),
+            cmd_tx.clone(),
+            cmd_tx_res_factory.clone(),
         );
         let get_network_peers_use_case =
-            dev::network::GetNetworkPeersUseCase::new(bus_tx.clone(), bus_tx_res_factory.clone());
+            dev::network::GetNetworkPeersUseCase::new(cmd_tx.clone(), cmd_tx_res_factory.clone());
         let add_network_peer_use_case =
-            dev::network::AddNetworkPeerUseCase::new(bus_tx.clone(), bus_tx_res_factory.clone());
+            dev::network::AddNetworkPeerUseCase::new(cmd_tx.clone(), cmd_tx_res_factory.clone());
         let get_mempool_transactions_use_case =
             dev::transactions::mempool::GetMempoolTransactionsUseCase::new(
-                bus_tx.clone(),
-                bus_tx_res_factory.clone(),
+                cmd_tx.clone(),
+                cmd_tx_res_factory.clone(),
             );
         let place_mempool_transaction_use_case =
             dev::transactions::mempool::PlaceMempoolTransactionUseCase::new(
-                bus_tx.clone(),
-                bus_tx_res_factory.clone(),
+                cmd_tx.clone(),
+                cmd_tx_res_factory.clone(),
             );
         let get_utxos_use_case = dev::transactions::utxo::GetUtxosUseCase::new(
-            bus_tx.clone(),
-            bus_tx_res_factory.clone(),
+            cmd_tx.clone(),
+            cmd_tx_res_factory.clone(),
         );
 
         Self {

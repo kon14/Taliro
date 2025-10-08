@@ -16,7 +16,7 @@ use domain::repos::network::NetworkRepository;
 use domain::system::network::event::{AddPeerResponse, NetworkEvent};
 use domain::system::network::validator::NetworkEntityValidator;
 use domain::system::network::{P2PNetworkEngine, P2PNetworkHandle};
-use domain::system::node::bus::{CommandResponderFactory, CommandSender};
+use domain::system::node::cmd::{CommandResponderFactory, CommandSender};
 use domain::types::network::{NetworkAddress, NetworkIdentityKeypair, NetworkPeerId};
 use libp2p::core::transport::ListenerId;
 use libp2p::futures::StreamExt;
@@ -209,8 +209,8 @@ impl Libp2pNetworkEngine {
     async fn handle_incoming_event(
         swarm: &mut Swarm<AppNetworkBehavior>,
         network_repo: &Arc<dyn NetworkRepository>,
-        bus_tx: &Arc<dyn CommandSender>,
-        bus_tx_res_factory: &Arc<dyn CommandResponderFactory>,
+        cmd_tx: &Arc<dyn CommandSender>,
+        cmd_tx_res_factory: &Arc<dyn CommandResponderFactory>,
         peer_store: &Arc<NetworkPeerStore>,
         active_listeners: &mut HashSet<ListenerId>,
         net_entity_validator: &Arc<dyn NetworkEntityValidator>,
@@ -305,8 +305,8 @@ impl Libp2pNetworkEngine {
                 AppNetworkEvent::handle_behavior_event(
                     behavior_event,
                     swarm,
-                    bus_tx,
-                    bus_tx_res_factory,
+                    cmd_tx,
+                    cmd_tx_res_factory,
                     network_repo,
                     termination_initiated,
                     net_entity_validator,
@@ -392,8 +392,8 @@ impl Libp2pNetworkEngine {
         self,
         mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
         mut events_rx: tokio::sync::mpsc::UnboundedReceiver<NetworkEvent>,
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
     ) {
         tokio::spawn({
             let mut swarm = self.swarm;
@@ -431,8 +431,8 @@ impl Libp2pNetworkEngine {
                         _ = Self::handle_incoming_event(
                             &mut swarm,
                             &network_repo,
-                            &bus_tx,
-                            &bus_tx_res_factory,
+                            &cmd_tx,
+                            &cmd_tx_res_factory,
                             &peer_store,
                             &mut active_listeners,
                             &net_entity_validator,
@@ -451,8 +451,8 @@ impl Libp2pNetworkEngine {
 impl P2PNetworkEngine for Libp2pNetworkEngine {
     async fn connect(
         mut self: Box<Self>,
-        bus_tx: Arc<dyn CommandSender>,
-        bus_tx_res_factory: Arc<dyn CommandResponderFactory>,
+        cmd_tx: Arc<dyn CommandSender>,
+        cmd_tx_res_factory: Arc<dyn CommandResponderFactory>,
         shutdown_rx: tokio::sync::broadcast::Receiver<()>,
     ) -> Result<Arc<dyn P2PNetworkHandle>, AppError> {
         let peer_addresses = self
@@ -488,8 +488,8 @@ impl P2PNetworkEngine for Libp2pNetworkEngine {
         self.spawn_network_event_handler_worker_task(
             shutdown_rx,
             events_rx,
-            bus_tx,
-            bus_tx_res_factory,
+            cmd_tx,
+            cmd_tx_res_factory,
         );
 
         Ok(Arc::new(network))
