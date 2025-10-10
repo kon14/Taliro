@@ -40,13 +40,55 @@ Rudimentary dev endpoint authorization is supported via an optional master key s
 > docker compose down -v
 ```
 
+<details>
+
+<summary>🔐 <ins><em>SELinux Compatibility</em></ins></summary>
+
+SELinux users may face issues accessing the Docker socket, despite being members of the `docker` user group.<br />
+While configuring SELinux policies is outside the scope of this readme file, you may temporarily bypass it as follows:
+
+``` bash
+# Check for AVC denial logs
+journalctl -b | grep 'avc:  denied'
+
+# Put SELinux in permissive mode
+sudo setenforce 0
+```
+
+</details>
+
+<details>
+
+<summary>🦭 <ins><em>Podman Compatibility</em></ins></summary>
+
+Podman is technically supported, but depending on your setup, you might need a couple of workarounds.<br />
+Head over to `docker-compose.yml` and flip any relevant `promtail` volume entries to their corresponding podman variants.
+
+If you're facing issues around DNS resolution, you're likely hitting a `podman-compose` bug resulting in containers not being registered to the `taliro-net` network.<br />
+Troubleshooting instructions are provided within `docker-compose.yml`.
+
+</details>
+
+
 ``` bash
 # Navigate to Swagger UI (on Linux)
-> xdg-open "http://localhost:4100/swagger/index.html"
-> xdg-open "http://localhost:4200/swagger/index.html"
+> xdg-open "http://localhost:4100/swagger/index.html" # Node Alpha
+> xdg-open "http://localhost:4200/swagger/index.html" # Node Beta
 ```
 
 Note: Make sure you bring up the full Swagger UI path to avoid 404s caused by path normalization redirects.
+
+---
+
+## <ins>Monitoring</ins> 🕵🏻 <a name="monitoring"></a>
+
+``` bash
+# Navigate to Grafana (on Linux)
+> xdg-open "http://localhost:3000"
+```
+
+Note: Grafana might take a few seconds to spin up.<br />
+Credentials: `admin` / `admin`.
 
 ---
 
@@ -154,17 +196,17 @@ The layers follow strict dependency rules to maintain clean architecture:
 ## <ins>Environment Variables</ins> 📃 <a name="env-vars"></a>
 
 
-|          Variable           | Description                                                                                                                                          | Required  |       Default        |                                            Example                                            |
-|:---------------------------:|------------------------------------------------------------------------------------------------------------------------------------------------------|:---------:|:--------------------:|:---------------------------------------------------------------------------------------------:|
-|      `STORAGE_DB_PATH`      | The filesystem path to be used for your `Sled` storage.                                                                                              |  `True`   |          —           |                               `$XDG_CONFIG_HOME/blockchain/db`                                |
-|       `HTTP_API_PORT`       | The port to be used by the HTTP server.                                                                                                              |  `False`  |        `4000`        |                                            `8080`                                             |
-|     `HTTP_API_BASE_URL`     | A public URL pointing to the backend API's root path.                                                                                                |  `True`   |          —           |                                   `https://foo.bar.baz/api`                                   |
-|  `HTTP_MASTER_KEY_SECRET`   | Optional secret to be used for development endpoint authorization.                                                                                   |  `False`  |          —           |                                      `7h3 c4k3 15 4 l13`                                      |
-|  `NETWORK_LISTEN_ADDRESS`   | The P2P node's network address.<br />Using an epheral port (`tcp/0`) will prohibit peers from reconnecting on restart.                               |  `False`  | `/ip4/0.0.0.0/tcp/0` |                                `/ip4/192.168.1.125/tcp/54244`                                 |
-|    `NETWORK_INIT_PEERS`     | Semicolon-separated list of initial peer addresses (multiaddr with peer id).                                                                         |  `False`  |          —           |    `/ip4/192.168.1.125/tcp/54244/p2p/12D3KooWSg4ox9udRcwrjo8ETg1gjB7g5wSSwjVMGKWJiqF9XjdB;`   |
-| `NETWORK_IDENTITY_KEY_PAIR` | `Base64` encoded `ed25519` key pair to be used for persistent node identity.<br />May be obtained from the dev HTTP API (`GET @ /dev/network/self`). |  `False`  |      Generated       | `CAESQPDur8zTyaDoZwmCIhtpdaE5s-TjOZd8iQhHKaaL7hQ6-nZnaha4CWVWEtIfYx4Vx53sxrChvlm25_EhXftu9Yo` |
-|         `RUST_LOG`          | Specifies the desired logging level.<br />Refer to the [env_logger](https://docs.rs/env_logger/latest/env_logger/) documentation for details.        |  `False`  |       `error`        |                                            `info`                                             |
-|        `CONFIG_PATH`        | Optional path to a `TOML` configuration file.                                                                                                        |  `False`  |          —           |                           `$XDG_CONFIG_HOME/blockchain/config.toml`                           |
+|          Variable           | Description                                                                                                                                                                                                                                                            | Required  |       Default        |                                            Example                                            |
+|:---------------------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------:|:--------------------:|:---------------------------------------------------------------------------------------------:|
+|      `STORAGE_DB_PATH`      | The filesystem path to be used for your `Sled` storage.                                                                                                                                                                                                                |  `True`   |          —           |                               `$XDG_CONFIG_HOME/blockchain/db`                                |
+|       `HTTP_API_PORT`       | The port to be used by the HTTP server.                                                                                                                                                                                                                                |  `False`  |        `4000`        |                                            `8080`                                             |
+|     `HTTP_API_BASE_URL`     | A public URL pointing to the backend API's root path.                                                                                                                                                                                                                  |  `True`   |          —           |                                   `https://foo.bar.baz/api`                                   |
+|  `HTTP_MASTER_KEY_SECRET`   | Optional secret to be used for development endpoint authorization.                                                                                                                                                                                                     |  `False`  |          —           |                                      `7h3 c4k3 15 4 l13`                                      |
+|  `NETWORK_LISTEN_ADDRESS`   | The P2P node's network address.<br />Using an epheral port (`tcp/0`) will prohibit peers from reconnecting on restart.                                                                                                                                                 |  `False`  | `/ip4/0.0.0.0/tcp/0` |                                `/ip4/192.168.1.125/tcp/54244`                                 |
+|    `NETWORK_INIT_PEERS`     | Semicolon-separated list of initial peer addresses (multiaddr with peer id).                                                                                                                                                                                           |  `False`  |          —           |    `/ip4/192.168.1.125/tcp/54244/p2p/12D3KooWSg4ox9udRcwrjo8ETg1gjB7g5wSSwjVMGKWJiqF9XjdB;`   |
+| `NETWORK_IDENTITY_KEY_PAIR` | `Base64` encoded `ed25519` key pair to be used for persistent node identity.<br />May be obtained from the dev HTTP API (`GET @ /dev/network/self`).                                                                                                                   |  `False`  |      Generated       | `CAESQPDur8zTyaDoZwmCIhtpdaE5s-TjOZd8iQhHKaaL7hQ6-nZnaha4CWVWEtIfYx4Vx53sxrChvlm25_EhXftu9Yo` |
+|         `RUST_LOG`          | Specifies the desired logging level.<br />Refer to the [tracing_subscriber](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#method.from_default_env) documentation for details.<br />Syntax is [env_logger](https://docs.rs/env_logger/latest/env_logger/)-compatible. |  `False`  |       `error`        |                                            `info`                                             |
+|        `CONFIG_PATH`        | Optional path to a `TOML` configuration file.                                                                                                                                                                                                                          |  `False`  |          —           |                           `$XDG_CONFIG_HOME/blockchain/config.toml`                           |
 
 ---
 

@@ -1,6 +1,7 @@
 use common::error::AppError;
 use dotenv::dotenv;
 use std::env;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 pub(crate) struct EnvironmentConfig {
     // HTTP
@@ -17,9 +18,22 @@ pub(crate) struct EnvironmentConfig {
 
 pub(crate) fn setup_env() {
     dotenv().ok();
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format_timestamp_secs()
+
+    // Initialize structured JSON logging for Loki integration
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(
+            tracing_subscriber::fmt::layer()
+                .json()
+                .with_current_span(false)
+                .with_span_list(false),
+        )
         .init();
+
+    // Bridge log crate to tracing (makes existing log macros work with JSON output)
+    tracing_log::LogTracer::init().ok();
 }
 
 impl EnvironmentConfig {

@@ -1,0 +1,54 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://taliro-loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Scrape logs from Docker/Podman containers via socket
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["node_id"]
+
+    relabel_configs:
+      # Extract container name
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+
+      # Extract node_id label
+      - source_labels: ['__meta_docker_container_label_node_id']
+        target_label: 'node_id'
+
+      # Set job label
+      - source_labels: ['__meta_docker_container_label_node_id']
+        target_label: 'job'
+        replacement: 'taliro-node'
+
+    # Parse JSON logs
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            target: target
+            message_text: fields.message
+
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+      - labels:
+          level:
+          target:
+
+      - output:
+          source: message_text

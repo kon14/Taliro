@@ -32,13 +32,22 @@ services:
       NETWORK_INIT_PEERS: '/dns4/taliro-node-beta/tcp/2049/p2p/12D3KooWKwUzXLNEAF97yuvyvWNVVunxAULArPj7pHWAvSveU1rc;'
       NETWORK_IDENTITY_KEY_PAIR: 'CAESQPDur8zTyaDoZwmCIhtpdaE5s-TjOZd8iQhHKaaL7hQ6-nZnaha4CWVWEtIfYx4Vx53sxrChvlm25_EhXftu9Yo'
       RUST_LOG: info
+      NODE_ID: node-alpha
       # CONFIG_PATH: /app/volume.config.toml
     volumes:
       - blockchain_data:/app/data
-      # - "${CONFIG_PATH}:/app/volume.config.toml:ro"
+      # - "${CONFIG_PATH}:/app/volume.config.toml:ro,z"
     restart: unless-stopped
     networks:
       - taliro-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "node_id"
+    labels:
+      node_id: "node-alpha"
 
   taliro-node-beta:
     build:
@@ -58,18 +67,87 @@ services:
       NETWORK_INIT_PEERS: '/dns4/taliro-node-alpha/tcp/2048/p2p/12D3KooWSg4ox9udRcwrjo8ETg1gjB7g5wSSwjVMGKWJiqF9XjdB;'
       NETWORK_IDENTITY_KEY_PAIR: 'CAESQNaiADCcs1buWnhLrOfQNWDeWl3n0LuUvWlkfiQgtaqYlmemjdyNNLfdj3m_wADliPaJwsiDCoC_JSi_gCO2RqU'
       RUST_LOG: info
+      NODE_ID: node-beta
       # CONFIG_PATH: /app/volume.config.toml
     volumes:
       - blockchain_data:/app/data
-      # - "${CONFIG_PATH}:/app/volume.config.toml:ro"
+      # - "${CONFIG_PATH}:/app/volume.config.toml:ro,z"
     restart: unless-stopped
     networks:
       - taliro-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "node_id"
+    labels:
+      node_id: "node-beta"
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: taliro-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - loki_data:/loki
+      - ./monitoring/loki-config.yaml:/etc/loki/config.yaml:ro,z
+    networks:
+      - taliro-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: taliro-promtail
+    volumes:
+      # Configuration
+      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yml:ro,z
+      # Container Logs
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro # Docker
+      # - /var/lib/containers:/var/lib/docker/containers:ro # Podman
+      # Docker Socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Docker
+      # - /run/podman/podman.sock:/var/run/docker.sock :ro# Podman (rootful)
+      # - /run/user/1000/podman/podman.sock:/var/run/docker.sock:ro # Podman (rootless)
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - taliro-net
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: taliro-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/taliro-logs.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro,z
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro,z
+    networks:
+      - taliro-net
+    depends_on:
+      loki:
+        condition: service_healthy
 
 volumes:
   blockchain_data:
     external: false
     driver: local
+  loki_data:
+  grafana_data:
 
 networks:
   taliro-net:
@@ -88,4 +166,7 @@ networks:
 # Then restarting them to ensure /etc/resolv.conf is updated with the correct DNS settings.
 # > docker network connect taliro-net taliro-node-alpha
 # > docker network connect taliro-net taliro-node-beta
-# > docker restart taliro-node-alpha taliro-node-beta
+# > docker network connect taliro-net taliro-loki
+# > docker network connect taliro-net taliro-promtail
+# > docker network connect taliro-net taliro-grafana
+# > docker restart taliro-node-alpha taliro-node-beta taliro-loki taliro-promtail taliro-grafana

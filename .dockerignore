@@ -21,7 +21,6 @@ Thumbs.db
 # Git
 .git/
 .gitignore
-lefthook.yml
 
 # Documentation
 *.md
@@ -41,21 +40,9 @@ clippy.toml
 .env.local
 .env.*.local
 
-# Local data
+# Local data storage directories
 data/
-
-# Docker files
-docker-compose*.yml
-.dockerignore
-
-# CI/CD
-.github/
-.gitlab-ci.yml
 
 # Logs
 *.log
 logs/
-
-# Example files
-*.example*
-*.example
