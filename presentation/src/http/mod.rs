@@ -64,7 +64,7 @@ fn setup_swagger_ui(api_base_url: &str, use_master_key: bool) -> SwaggerUi {
 
     let config = utoipa_swagger_ui::Config::new([SWAGGER_API_DOC_PATH])
         .try_it_out_enabled(true)
-        .persist_authorization(true);
+        .persist_authorization(use_master_key);
 
     SwaggerUi::new(SWAGGER_UI_PATH).config(config).url(
         SWAGGER_API_DOC_PATH,

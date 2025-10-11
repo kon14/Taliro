@@ -21,8 +21,8 @@ services:
     image: taliro:latest
     container_name: taliro-node-alpha
     ports:
-      - '${API_PORT:-4100}:4100'  # HTTP API port
-      # - '${P2P_PORT:-2048}:2048'  # P2P networking port
+      - '${ALPHA_API_PORT:-4100}:4100'  # HTTP API port
+      # - '${ALPHA_P2P_PORT:-2048}:2048'  # P2P networking port
     environment:
       STORAGE_DB_PATH: /app/data/db_alpha
       HTTP_API_PORT: 4100
@@ -36,7 +36,7 @@ services:
       # CONFIG_PATH: /app/volume.config.toml
     volumes:
       - blockchain_data:/app/data
-      # - "${CONFIG_PATH}:/app/volume.config.toml:ro,z"
+      # - "${ALPHA_CONFIG_PATH}:/app/volume.config.toml:ro,z"
     restart: unless-stopped
     networks:
       - taliro-net
@@ -56,8 +56,8 @@ services:
     image: taliro:latest
     container_name: taliro-node-beta
     ports:
-      - '${API_PORT:-4200}:4200'  # HTTP API port
-      # - '${P2P_PORT:-2049}:2049'  # P2P networking port
+      - '${BETA_API_PORT:-4200}:4200'  # HTTP API port
+      # - '${BETA_P2P_PORT:-2049}:2049'  # P2P networking port
     environment:
       STORAGE_DB_PATH: /app/data/db_beta
       HTTP_API_PORT: 4200
@@ -71,7 +71,7 @@ services:
       # CONFIG_PATH: /app/volume.config.toml
     volumes:
       - blockchain_data:/app/data
-      # - "${CONFIG_PATH}:/app/volume.config.toml:ro,z"
+      # - "${BETA_CONFIG_PATH}:/app/volume.config.toml:ro,z"
     restart: unless-stopped
     networks:
       - taliro-net

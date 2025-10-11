@@ -49,10 +49,10 @@ While configuring SELinux policies is outside the scope of this readme file, you
 
 ``` bash
 # Check for AVC denial logs
-journalctl -b | grep 'avc:  denied'
+> journalctl -b | grep 'avc:  denied'
 
 # Put SELinux in permissive mode
-sudo setenforce 0
+> sudo setenforce 0
 ```
 
 </details>

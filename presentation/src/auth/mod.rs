@@ -21,6 +21,10 @@ impl FromRequestParts<AppState> for MasterKeyAuthContextExtractor {
     ) -> Result<Self, Self::Rejection> {
         const UNAUTHORIZED_ERR_STR: &str = "Failed to authenticate user!";
 
+        if !app_state.master_key_authenticator.is_enabled() {
+            return Ok(MasterKeyAuthContextExtractor(None));
+        }
+
         async fn get_ctx(
             parts: &mut Parts,
             app_state: &AppState,
