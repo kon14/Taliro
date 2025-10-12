@@ -1,15 +1,15 @@
-
 <div align="center">
-<br>
-<a href="https://github.com/kon14/Taliro" target="_blank">
-    <h1>Taliro 🪙</h1>
-</a>
-A UTXO-based blockchain P2P node implementation written in <strong>Rust</strong> 🦀.
+    <a href="https://github.com/kon14/Taliro" target="_blank">
+        <img width="500" style="max-width: 100%; height: auto;" alt="Taliro Logo" src="/assets/taliro_logo.svg" />
+    </a>
+</div>
+<div align="center">
+    <p>A UTXO-based blockchain written in <strong>Rust</strong> 🦀.</p>
 </div>
 
 <hr />
 
-Despite its simplicity, this project aims to demonstrate a ~~fully~~ somewhat-functional UTXO-based blockchain node.<br />
+Despite its simplicity, this project aims to demonstrate a ~~fully~~ somewhat-functional UTXO-based blockchain.<br />
 Taliro nodes connect to each other over a P2P network, exchanging blocks and transactions.<br />
 Each node maintains its own local copy of the blockchain.
 

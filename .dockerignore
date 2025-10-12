@@ -22,6 +22,9 @@ Thumbs.db
 .git/
 .gitignore
 
+# Repo Assets
+assets/
+
 # Documentation
 *.md
 docs/
