@@ -92,104 +92,62 @@ Credentials: `admin` / `admin`.
 
 ---
 
-## <ins>Key Features</ins> 🌟 <a name="features"></a>
-
-### **Blockchain Core**
-- **Block Validation**: Comprehensive structural and content validation
-- **UTXO Management**: Unspent transaction output tracking
-- **Transaction Processing**: Input/output validation and balance verification
-- **Chain Synchronization**: P2P block synchronization with peers
-
-### **P2P Networking**
-- **libp2p Integration**: Modern peer-to-peer networking stack
-- **Protocol Support**: Custom blockchain protocol over request-response
-- **Peer Discovery**: Automatic peer discovery and connection management
-- **Event-Driven**: Asynchronous network event handling
-
-### **Persistent Storage**
-- **Sled Database**: Embedded key-value storage for blockchain data
-- **ACID Transactions**: Reliable data consistency guarantees
-- **Outbox Pattern**: Reliable event publishing with at-least-once delivery
-- **Efficient Indexing**: Height-based and hash-based block lookups
-
----
-
 ## <ins>Architecture Overview</ins> 🏗️ <a name="architecture"></a>
 
-The codebase leverages **Domain-Driven Design (DDD)** patterns and **Clean Architecture (CA)** principles to ensure maintainability, testability and separation of concerns.
+``` mermaid
+flowchart TD
+    HTTP["<ins>**HTTP Dev API**</ins><br />(Axum)"]
+    P2P["<ins>**P2P Network**</ins><br />(libp2p)<br /><br />- Gossipsub<br />- Kademlia<br />- Taliro (Request/Response)"]
+    UC[Application Use Cases]
+    NODE_CMD[<ins>**Node**</ins><br />Command Orchestration<br />Event Loop]
+    BC[Blockchain]
+    MP[Mempool]
+    UTXO[UTXO Set]
+    BLOCK_VAL[Block Validator]
+    TX_VAL[Transaction Validator]
+    SYNC_Q[Block Sync Queue]
+    PROC_Q[Block Processing Queue]
+    OUTBOX[Outbox]
+    SLED["<ins>**Storage**</ins><br />(Sled)<br />"]
+    
+    HTTP --> UC
+    P2P --> NODE_CMD
+    UC --> NODE_CMD
+    NODE_CMD --> BC
+    NODE_CMD --> MP
+    NODE_CMD --> UTXO
+    NODE_CMD --> P2P
+    NODE_CMD --> SYNC_Q
+    SYNC_Q --> PROC_Q
+    BC --> BLOCK_VAL
+    BC --> OUTBOX
+    BLOCK_VAL --> TX_VAL
+    MP --> TX_VAL
+    OUTBOX --> NODE_CMD
+    BC --> SLED
+    UTXO --> SLED
+    NODE_CMD --> SLED
+    OUTBOX --> SLED
+    
+    %% Styling External Boundaries
+    style HTTP fill:#ffcc00,stroke:#000000,stroke-width:2px,color:#000000
+    style P2P fill:#ffcc00,stroke:#000000,stroke-width:2px,color:#000000
+    
+    %% Styling Node Orchestrator
+    style NODE_CMD fill:#87ceeb,stroke:#000000,stroke-width:3px,color:#000000
+    
+    %% Styling Core Components
+    style BC fill:#b19cd9,stroke:#000000,stroke-width:2px,color:#000000
+    style MP fill:#b19cd9,stroke:#000000,stroke-width:2px,color:#000000
+    style UTXO fill:#b19cd9,stroke:#000000,stroke-width:2px,color:#000000
+    
+    %% Styling Internal Storage
+    style SLED fill:#90ee90,stroke:#000000,stroke-width:2px,color:#000000
+```
 
-This project is organized into **4 distinct layers**, each with clear responsibilities and enforced boundaries:
-
-<details>
-
-<summary>🔎 <ins><em>Tell me more...</em></ins></summary>
-
-### 🟣 <ins>**Domain Layer**</ins> (`domain`)
-The core business logic layer containing:
-- **Entities**: Core business objects with identity
-- **Value Objects**: Immutable types representing domain concepts
-- **Repository Traits**: Abstract contracts for domain-level data persistence
-- **Domain Validation**: Business rule enforcement at the entity level
-- **System Abstractions**: Blockchain, UTXO, Network etc
-
-### 🔵 <ins>**Application Layer**</ins> (`application`)
-Orchestrates blockchain workflows without implementation details:
-- **Use Cases**: Application-specific business logic
-- **Application Services**: Cross-cutting concerns (authentication, authorization)
-- **Queue Management**: Orchestrators for async tasks
-- **Outbox Relay**: Reliable event publishing for atomic operations
-- ~~**Repository Traits**: Abstract contracts for app-level data persistence~~ (none yet)
-- **Application DTOs**: Data transfer objects for interlayer communication
-
-### 🟢 <ins>**Infrastructure Layer**</ins> (`infrastructure`)
-Concrete implementations of abstract contracts:
-- **Repository Implementations**: **Sled**-based blockchain data persistence
-- **Network Protocol**: **libp2p**-based P2P networking
-- **Unit of Work**: Atomic transactions
-- **External Service Adapters**: JWT handling, password hashing
-- **Infrastructure DTOs**: Storage-specific data models
-
-### 🟡 <ins>**Presentation Layer**</ins> (`presentation`)
-HTTP API and external interfaces:
-- **HTTP Handlers**: REST endpoints for blockchain queries
-- **DTOs**: API request/response models
-- **Authentication Extractors**: JWT token validation
-- **OpenAPI Documentation**: Auto-generated via **utoipa**
-
-### 📦 <ins>**Supporting Crates**</ins>
-
-#### <ins>**Common**</ins> (`common`)
-Shared utilities across all layers:
-- **Logging**: Structured logging macros
-- **Error Types**: Standardized blockchain error handling
-- **Configuration**: Configuration data types
-- **Transaction Abstractions**: Infrastructure-agnostic transaction management (allows for CA-compliant use cases)
-- **Cross-cutting Utilities**: Shared types and helper functions
-
-#### <ins>**Main**</ins> (`main`)
-Application entry point and dependency injection:
-- **Blockchain Node Startup**: P2P blockchain node bootstrapping
-- **HTTP Server Startup**: HTTP server initialization and middleware setup
-- **Environment Setup**: Configuration loading and validation
-- **Dependency Wiring**: Service registration and dependency injection
-
-#### <ins>**Macros**</ins> (`macros`)
-Custom procedural macros for code generation:
-- **Logging Macros**: Configurable logging macro generator
-
-### <ins>Clean Architecture Dependency Flow</ins>
-
-The layers follow strict dependency rules to maintain clean architecture:
-
-- **Domain** depends on nothing (pure blockchain logic)
-- **Application** depends solely on *Domain*
-- **Infrastructure** depends on *Domain* and *Application*
-- **Presentation** depends on *Application* and *Domain*
-- **Common** is dependency-free and accessible by all layers
-- **Macros** is exclusively used by *Common*
-- **Main** depends on all layers to wire everything together
-
-</details>
+I see you've taken an interest in this one 🤔.<br />
+Whether it's cause you like what you see or you absolutely loathe it...<br />
+You may always refer to the [Architecture Documentation](./ARCHITECTURE.md) for a detailed analysis of the project and its design decisions.
 
 ---
 
